@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://example.invalid/ini-tweak-lab.schema.json",
-  "title": "INI Tweak Lab CVar Schema Pack",
+  "$id": "https://raw.githubusercontent.com/tajemniktv/UEiniLab/refs/heads/main/schemas/ini-tweak-lab.schema.json",
+  "title": "UE INI Lab Schema",
   "type": "object",
   "required": ["schemaVersion", "id", "displayName", "cvars"],
   "properties": {

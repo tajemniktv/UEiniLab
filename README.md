@@ -2,18 +2,6 @@
 
 Taj's UE ini Lab is a VS Code extension for working on Unreal Engine and game `.ini` tweak files. It provides a custom `ini-tweak` language mode, tolerant Unreal-aware parsing, schema-backed CVar documentation, completions, diagnostics, inlay hints, import tools, and reports.
 
-## Quick Start
-
-1. Run `npm install`.
-2. Run `npm run compile`.
-3. Press `F5` in VS Code and choose **Run Extension**.
-4. Open `examples/Engine.ini`.
-5. Set the language mode to **INI Tweak** if VS Code did not select it automatically.
-6. Use **INI Tweak Lab: Select Unreal Engine Version** or the **INI Tweak Lab** activity bar view to choose a bundled UE base schema.
-7. Hover a known key such as `r.DynamicGlobalIlluminationMethod`.
-
-If no workspace schema stack is configured, the extension loads the newest bundled `schemas/ue<version>-base.cvars.jsonc` schema it can find. The tiny example schema is only a last-resort fallback.
-
 ## Features
 
 - Language registration for known Unreal config filenames such as `Engine.ini`, `GameUserSettings.ini`, `Scalability.ini`, and `Game.ini`, plus `.engineini` and `.gameini`, with language id `ini-tweak`. Other files can still use the extension by manually selecting **INI Tweak** as the language mode.
@@ -160,7 +148,25 @@ npm test -- --run
 npm run lint
 ```
 
-Launch an Extension Development Host with the included `.vscode/launch.json`.
+`npm run compile` type-checks the TypeScript sources and bundles the extension into `dist/extension.js` with esbuild. For development watch mode, run:
+
+```bash
+npm run watch
+```
+
+Run the full recommended local check set with:
+
+```bash
+npm run check
+```
+
+Package a local `.vsix` with:
+
+```bash
+npm run package
+```
+
+Launch an Extension Development Host with the included `.vscode/launch.json`. The workspace also includes VS Code tasks for compile, watch, test, lint, check, and package.
 
 ## Regenerating Epic Base Schemas
 

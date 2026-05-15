@@ -1,0 +1,13 @@
+.vscode/**
+.gitignore
+AGENTS.md
+esbuild.js
+SchemaSource/**
+node_modules/**
+scripts/**
+src/**
+test/**
+*.vsix
+eslint.config.mjs
+tsconfig.json
+vitest.config.mts

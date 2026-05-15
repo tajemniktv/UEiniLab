@@ -4,6 +4,10 @@
   "description": "Schema-backed Unreal Engine and game INI editing, validation, documentation, comparison, and CVar research.",
   "version": "1.0.0",
   "publisher": "TajemnikTV",
+  "repository": {
+    "url": "https://github.com/tajemniktv/UEiniLab",
+    "type": "git"
+  },
   "engines": {
     "vscode": "^1.95.0"
   },
@@ -39,7 +43,10 @@
           "Unreal INI",
           "Game INI"
         ],
-        "extensions": [".engineini", ".gameini"],
+        "extensions": [
+          ".engineini",
+          ".gameini"
+        ],
         "filenames": [
           "Engine.ini",
           "GameUserSettings.ini",
@@ -192,8 +199,7 @@
           "command": "iniTweakLab.searchActiveCVars"
         }
       ]
-    }
-,
+    },
     "configuration": {
       "title": "INI Tweak Lab",
       "properties": {
@@ -317,11 +323,20 @@
   },
   "scripts": {
     "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
-    "compile": "npm run clean && tsc -p .",
-    "watch": "tsc -watch -p .",
-    "generate:epic-schemas": "npm run compile && node scripts/generateEpicSchemas.js",
+    "check-types": "tsc --noEmit",
+    "compile": "npm run clean && npm run check-types && node esbuild.js",
+    "compile:modules": "npm run clean && tsc -p .",
+    "watch": "npm-run-all -p watch:*",
+    "watch:esbuild": "node esbuild.js --watch",
+    "watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
+    "generate:epic-schemas": "npm run compile:modules && node scripts/generateEpicSchemas.js",
     "test": "vitest",
+    "test:run": "vitest --run",
     "lint": "eslint \"src/**/*.ts\" \"test/**/*.ts\"",
+    "check": "npm run compile && npm run test:run && npm run lint",
+    "vscode:prepublish": "npm run package:extension",
+    "package:extension": "npm run clean && npm run check-types && node esbuild.js --production",
+    "package": "npm run check && vsce package",
     "format": "prettier --write ."
   },
   "dependencies": {
@@ -333,7 +348,10 @@
     "@types/vscode": "^1.95.0",
     "@typescript-eslint/eslint-plugin": "^8.13.0",
     "@typescript-eslint/parser": "^8.13.0",
+    "@vscode/vsce": "^3.9.1",
+    "esbuild": "^0.28.0",
     "eslint": "^9.14.0",
+    "npm-run-all": "^4.1.5",
     "prettier": "^3.3.3",
     "typescript": "^5.6.3",
     "vitest": "^2.1.4"

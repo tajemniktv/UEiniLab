@@ -1,0 +1,76 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "npm: compile",
+      "type": "npm",
+      "script": "compile",
+      "group": "build",
+      "problemMatcher": ["$tsc", "$esbuild-watch"]
+    },
+    {
+      "label": "watch",
+      "dependsOn": ["npm: watch:tsc", "npm: watch:esbuild"],
+      "group": "build",
+      "presentation": {
+        "reveal": "never"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "npm: watch:tsc",
+      "type": "npm",
+      "script": "watch:tsc",
+      "group": "build",
+      "isBackground": true,
+      "problemMatcher": "$tsc-watch",
+      "presentation": {
+        "group": "watch",
+        "reveal": "never"
+      }
+    },
+    {
+      "label": "npm: watch:esbuild",
+      "type": "npm",
+      "script": "watch:esbuild",
+      "group": "build",
+      "isBackground": true,
+      "problemMatcher": "$esbuild-watch",
+      "presentation": {
+        "group": "watch",
+        "reveal": "never"
+      }
+    },
+    {
+      "label": "npm: test",
+      "type": "npm",
+      "script": "test:run",
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "npm: lint",
+      "type": "npm",
+      "script": "lint",
+      "group": "test",
+      "problemMatcher": "$eslint-stylish"
+    },
+    {
+      "label": "npm: check",
+      "type": "npm",
+      "script": "check",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": ["$tsc", "$eslint-stylish"]
+    },
+    {
+      "label": "npm: package",
+      "type": "npm",
+      "script": "package",
+      "group": "build",
+      "problemMatcher": ["$tsc", "$eslint-stylish"]
+    }
+  ]
+}

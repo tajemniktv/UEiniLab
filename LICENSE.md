@@ -1,0 +1,1 @@
+Copyright (c) Grzegorz Kaczmarski (TajemnikTV). All rights reserved.
