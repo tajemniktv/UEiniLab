@@ -1,0 +1,17 @@
+{
+  "SystemSettings block": {
+    "prefix": "systemsettings",
+    "body": ["[SystemSettings]", "r.DynamicGlobalIlluminationMethod=${1:1}", "r.ReflectionMethod=${2:1}"],
+    "description": "Common Unreal SystemSettings tweak block"
+  },
+  "Renderer settings section": {
+    "prefix": "renderersettings",
+    "body": ["[/Script/Engine.RendererSettings]", "r.DynamicGlobalIlluminationMethod=${1:1}", "r.ReflectionMethod=${2:1}"],
+    "description": "Unreal renderer settings section"
+  },
+  "Scalability group": {
+    "prefix": "scalability",
+    "body": ["[${1:ScalabilityGroups}]", "sg.ViewDistanceQuality=${2:3}", "sg.TextureQuality=${3:3}", "sg.ShadowQuality=${4:3}"],
+    "description": "Common scalability group settings"
+  }
+}

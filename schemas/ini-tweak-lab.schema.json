@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/ini-tweak-lab.schema.json",
+  "title": "INI Tweak Lab CVar Schema Pack",
+  "type": "object",
+  "required": ["schemaVersion", "id", "displayName", "cvars"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "id": { "type": "string" },
+    "displayName": { "type": "string" },
+    "target": {
+      "type": "object",
+      "properties": {
+        "engine": { "type": ["string", "null"] },
+        "engineVersion": { "type": ["string", "null"] },
+        "game": { "type": ["string", "null"] },
+        "gameBuild": { "type": ["string", "null"] }
+      }
+    },
+    "generatedFrom": { "type": "object" },
+    "cvars": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name": { "type": "string" },
+          "kind": { "enum": ["variable", "command", "exec", "unknown"] },
+          "type": { "enum": ["bool", "int", "float", "string", "enum", "command", "unknown"] },
+          "defaultValue": {},
+          "currentValue": {},
+          "help": { "type": "string" },
+          "category": { "type": "string" },
+          "flags": { "type": "array", "items": { "type": "string" } },
+          "knownValues": { "type": "object", "additionalProperties": { "type": "string" } },
+          "iniSections": { "type": "array", "items": { "type": "string" } },
+          "requiresRestart": { "oneOf": [{ "type": "boolean" }, { "const": "unknown" }] },
+          "availability": { "type": "object" },
+          "notes": { "type": "array", "items": { "type": "string" } },
+          "sources": { "type": "array", "items": { "type": "object" } }
+        }
+      }
+    }
+  }
+}

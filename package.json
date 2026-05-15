@@ -1,0 +1,341 @@
+{
+  "name": "tajs-ue-ini-lab",
+  "displayName": "Taj's UE ini Lab",
+  "description": "Schema-backed Unreal Engine and game INI editing, validation, documentation, comparison, and CVar research.",
+  "version": "1.0.0",
+  "publisher": "TajemnikTV",
+  "engines": {
+    "vscode": "^1.95.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Linters",
+    "Other"
+  ],
+  "activationEvents": [
+    "onView:iniTweakLab.panel",
+    "onLanguage:ini-tweak",
+    "onCommand:iniTweakLab.importCvarDump",
+    "onCommand:iniTweakLab.importSchemaFile",
+    "onCommand:iniTweakLab.validateCurrentFile",
+    "onCommand:iniTweakLab.generateTweakReport",
+    "onCommand:iniTweakLab.explainSelectedSetting",
+    "onCommand:iniTweakLab.compareCurrentIniAgainstActiveSchema",
+    "onCommand:iniTweakLab.openSchemaStack",
+    "onCommand:iniTweakLab.selectEngineVersion",
+    "onCommand:iniTweakLab.createWorkspaceSchema",
+    "onCommand:iniTweakLab.generateUnrealRendererBlock",
+    "onCommand:iniTweakLab.sortCurrentSection",
+    "onCommand:iniTweakLab.commentOutSelectedTweaks",
+    "onCommand:iniTweakLab.searchActiveCVars"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "ini-tweak",
+        "aliases": [
+          "INI Tweak",
+          "Unreal INI",
+          "Game INI"
+        ],
+        "extensions": [".engineini", ".gameini"],
+        "filenames": [
+          "Engine.ini",
+          "GameUserSettings.ini",
+          "Scalability.ini",
+          "Game.ini",
+          "DefaultEngine.ini",
+          "DefaultGame.ini",
+          "DefaultScalability.ini",
+          "DefaultInput.ini"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "ini-tweak",
+        "scopeName": "source.ini-tweak",
+        "path": "./syntaxes/ini-tweak.tmLanguage.json"
+      }
+    ],
+    "snippets": [
+      {
+        "language": "ini-tweak",
+        "path": "./snippets/ini-tweak.code-snippets"
+      }
+    ],
+    "commands": [
+      {
+        "command": "iniTweakLab.importCvarDump",
+        "title": "INI Tweak Lab: Import CVar Dump"
+      },
+      {
+        "command": "iniTweakLab.importSchemaFile",
+        "title": "INI Tweak Lab: Import Schema File"
+      },
+      {
+        "command": "iniTweakLab.validateCurrentFile",
+        "title": "INI Tweak Lab: Validate Current File"
+      },
+      {
+        "command": "iniTweakLab.generateTweakReport",
+        "title": "INI Tweak Lab: Generate Tweak Report"
+      },
+      {
+        "command": "iniTweakLab.explainSelectedSetting",
+        "title": "INI Tweak Lab: Explain Selected Setting"
+      },
+      {
+        "command": "iniTweakLab.compareCurrentIniAgainstActiveSchema",
+        "title": "INI Tweak Lab: Compare Current INI Against Active Schema"
+      },
+      {
+        "command": "iniTweakLab.openSchemaStack",
+        "title": "INI Tweak Lab: Open Schema Stack"
+      },
+      {
+        "command": "iniTweakLab.selectEngineVersion",
+        "title": "INI Tweak Lab: Select Unreal Engine Version"
+      },
+      {
+        "command": "iniTweakLab.createWorkspaceSchema",
+        "title": "INI Tweak Lab: Create Workspace Schema"
+      },
+      {
+        "command": "iniTweakLab.generateUnrealRendererBlock",
+        "title": "INI Tweak Lab: Generate Unreal Renderer Block"
+      },
+      {
+        "command": "iniTweakLab.sortCurrentSection",
+        "title": "INI Tweak Lab: Sort Current Section"
+      },
+      {
+        "command": "iniTweakLab.commentOutSelectedTweaks",
+        "title": "INI Tweak Lab: Comment Out Selected Tweaks"
+      },
+      {
+        "command": "iniTweakLab.searchActiveCVars",
+        "title": "INI Tweak Lab: Search Active CVars"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "iniTweakLab",
+          "title": "INI Tweak Lab",
+          "icon": "resources/activity-icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "iniTweakLab": [
+        {
+          "id": "iniTweakLab.panel",
+          "name": "Workbench"
+        }
+      ]
+    },
+    "menus": {
+      "view/title": [
+        {
+          "command": "iniTweakLab.openSchemaStack",
+          "when": "view == iniTweakLab.panel",
+          "group": "navigation@1"
+        },
+        {
+          "command": "iniTweakLab.selectEngineVersion",
+          "when": "view == iniTweakLab.panel",
+          "group": "navigation@2"
+        }
+      ],
+      "view/item/context": [],
+      "commandPalette": [
+        {
+          "command": "iniTweakLab.importCvarDump"
+        },
+        {
+          "command": "iniTweakLab.importSchemaFile"
+        },
+        {
+          "command": "iniTweakLab.validateCurrentFile"
+        },
+        {
+          "command": "iniTweakLab.generateTweakReport"
+        },
+        {
+          "command": "iniTweakLab.explainSelectedSetting"
+        },
+        {
+          "command": "iniTweakLab.compareCurrentIniAgainstActiveSchema"
+        },
+        {
+          "command": "iniTweakLab.openSchemaStack"
+        },
+        {
+          "command": "iniTweakLab.selectEngineVersion"
+        },
+        {
+          "command": "iniTweakLab.createWorkspaceSchema"
+        },
+        {
+          "command": "iniTweakLab.generateUnrealRendererBlock"
+        },
+        {
+          "command": "iniTweakLab.sortCurrentSection"
+        },
+        {
+          "command": "iniTweakLab.commentOutSelectedTweaks"
+        },
+        {
+          "command": "iniTweakLab.searchActiveCVars"
+        }
+      ]
+    }
+,
+    "configuration": {
+      "title": "INI Tweak Lab",
+      "properties": {
+        "iniTweakLab.profile": {
+          "type": "string",
+          "enum": [
+            "generic",
+            "unreal-engine",
+            "unreal-engine-shipping",
+            "custom"
+          ],
+          "default": "unreal-engine",
+          "description": "Active behavior profile for parsing and validating INI tweak files."
+        },
+        "iniTweakLab.schemaStack": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "Ordered schema files. Later user/workspace overrides should be placed earlier for highest priority."
+        },
+        "iniTweakLab.enableDiagnostics": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable diagnostics for INI tweak files."
+        },
+        "iniTweakLab.warnUnknownCvars": {
+          "type": "boolean",
+          "default": true,
+          "description": "Warn about unknown CVar-looking keys."
+        },
+        "iniTweakLab.warnDuplicateKeys": {
+          "type": "boolean",
+          "default": true,
+          "description": "Warn about duplicate keys in the same section."
+        },
+        "iniTweakLab.warnTypeMismatches": {
+          "type": "boolean",
+          "default": true,
+          "description": "Warn when a value does not match a known CVar type or enum."
+        },
+        "iniTweakLab.warnKnownInEngineButMissingFromGameDump": {
+          "type": "boolean",
+          "default": true,
+          "description": "Warn when a setting exists in a lower-priority engine schema but is missing from the active game dump."
+        },
+        "iniTweakLab.showHoverSourceProvenance": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show schema source provenance in hovers."
+        },
+        "iniTweakLab.showDumpValuesAsInlayHints": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show default/current/type inlay hints beside known CVars."
+        },
+        "iniTweakLab.maxCompletionItems": {
+          "type": "number",
+          "default": 100,
+          "minimum": 10,
+          "maximum": 1000,
+          "description": "Maximum CVar completion items returned."
+        },
+        "iniTweakLab.completion.matchMode": {
+          "type": "string",
+          "enum": [
+            "strictPrefix",
+            "smart",
+            "fuzzy"
+          ],
+          "default": "smart",
+          "description": "CVar completion matching strategy. Smart uses exact prefix matches first, then token matches; fuzzy also allows typo fallback."
+        },
+        "iniTweakLab.completion.fuzzyFallback": {
+          "type": "boolean",
+          "default": false,
+          "description": "Allow fuzzy CVar completion fallback on manual completion invocation when strict prefix matches are empty."
+        },
+        "iniTweakLab.debug.completions": {
+          "type": "boolean",
+          "default": false,
+          "description": "Write completion context and candidate diagnostics to the INI Tweak Lab Completions output channel."
+        },
+        "iniTweakLab.schemaSearchPaths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            ".ini-lab/schemas",
+            "schemas/examples"
+          ],
+          "description": "Folders searched by import and schema stack commands."
+        },
+        "iniTweakLab.defaultIniSections": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "SystemSettings",
+            "/Script/Engine.RendererSettings",
+            "/Script/Engine.Engine",
+            "/Script/Engine.GameUserSettings"
+          ],
+          "description": "Sections suggested by completions and snippets."
+        },
+        "iniTweakLab.assumeUnrealSyntax": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable Unreal-specific syntax such as +Key, -Key, and !Key array mutation lines."
+        },
+        "iniTweakLab.enableInlineCommentParsing": {
+          "type": "boolean",
+          "default": true,
+          "description": "Parse inline comments after values when safe."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
+    "compile": "npm run clean && tsc -p .",
+    "watch": "tsc -watch -p .",
+    "generate:epic-schemas": "npm run compile && node scripts/generateEpicSchemas.js",
+    "test": "vitest",
+    "lint": "eslint \"src/**/*.ts\" \"test/**/*.ts\"",
+    "format": "prettier --write ."
+  },
+  "dependencies": {
+    "jsonc-parser": "^3.3.1",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.6",
+    "@types/vscode": "^1.95.0",
+    "@typescript-eslint/eslint-plugin": "^8.13.0",
+    "@typescript-eslint/parser": "^8.13.0",
+    "eslint": "^9.14.0",
+    "prettier": "^3.3.3",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.4"
+  }
+}

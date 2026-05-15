@@ -1,0 +1,75 @@
+// Small example schema. Import real engine/game dumps for serious validation.
+{
+  "schemaVersion": 1,
+  "id": "ue5-base-example",
+  "displayName": "Unreal Engine Base Example CVars",
+  "target": {
+    "engine": "Unreal Engine",
+    "engineVersion": "5.x",
+    "game": null,
+    "gameBuild": null
+  },
+  "generatedFrom": {
+    "source": "hand-authored example",
+    "generatedAt": "2026-05-15T00:00:00Z"
+  },
+  "cvars": {
+    "r.DynamicGlobalIlluminationMethod": {
+      "name": "r.DynamicGlobalIlluminationMethod",
+      "kind": "variable",
+      "type": "int",
+      "defaultValue": "1",
+      "currentValue": "1",
+      "help": "Selects the dynamic global illumination method.",
+      "category": "Rendering / Global Illumination",
+      "knownValues": {
+        "0": "Disabled",
+        "1": "Lumen",
+        "2": "Screen Space"
+      },
+      "iniSections": ["SystemSettings", "/Script/Engine.RendererSettings"],
+      "requiresRestart": "unknown",
+      "notes": ["May be overridden by project renderer settings or scalability."],
+      "sources": [{ "type": "engine-dump", "label": "UE base example" }]
+    },
+    "r.ReflectionMethod": {
+      "name": "r.ReflectionMethod",
+      "kind": "variable",
+      "type": "int",
+      "defaultValue": "1",
+      "currentValue": "1",
+      "help": "Selects the reflection rendering method.",
+      "category": "Rendering / Reflections",
+      "knownValues": {
+        "0": "None",
+        "1": "Lumen",
+        "2": "Screen Space"
+      },
+      "iniSections": ["SystemSettings", "/Script/Engine.RendererSettings"],
+      "sources": [{ "type": "engine-dump", "label": "UE base example" }]
+    },
+    "r.Shadow.Virtual.Enable": {
+      "name": "r.Shadow.Virtual.Enable",
+      "kind": "variable",
+      "type": "bool",
+      "defaultValue": "1",
+      "currentValue": "1",
+      "help": "Enables virtual shadow maps where supported.",
+      "category": "Rendering / Shadows",
+      "iniSections": ["SystemSettings", "/Script/Engine.RendererSettings"],
+      "sources": [{ "type": "engine-dump", "label": "UE base example" }]
+    },
+    "sg.TextureQuality": {
+      "name": "sg.TextureQuality",
+      "kind": "variable",
+      "type": "int",
+      "defaultValue": "3",
+      "currentValue": "3",
+      "help": "Scalability texture quality group.",
+      "category": "Scalability",
+      "knownValues": { "0": "Low", "1": "Medium", "2": "High", "3": "Epic", "4": "Cinematic" },
+      "iniSections": ["ScalabilityGroups"],
+      "sources": [{ "type": "engine-dump", "label": "UE base example" }]
+    }
+  }
+}

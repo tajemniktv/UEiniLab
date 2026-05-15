@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "id": "example-game-dump",
+  "displayName": "Example Game Dump CVars",
+  "target": {
+    "engine": "Unreal Engine",
+    "engineVersion": "5.x",
+    "game": "Example Game",
+    "gameBuild": "example"
+  },
+  "generatedFrom": {
+    "source": "Example UUU/DumpConsoleCommands import",
+    "generatedAt": "2026-05-15T00:00:00Z"
+  },
+  "cvars": {
+    "r.DynamicGlobalIlluminationMethod": {
+      "name": "r.DynamicGlobalIlluminationMethod",
+      "kind": "variable",
+      "type": "int",
+      "currentValue": "0",
+      "help": "Game dump reports the current GI method as disabled.",
+      "sources": [{ "type": "game-dump", "label": "Example Game Dump" }]
+    }
+  }
+}

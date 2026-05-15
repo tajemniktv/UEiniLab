@@ -1,0 +1,7 @@
+{
+  // Higher priority first.
+  "iniTweakLab.schemaStack": [
+    "schemas/examples/game-dump.example.cvars.jsonc",
+    "schemas/examples/ue5-base.example.cvars.jsonc"
+  ]
+}

@@ -1,0 +1,106 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "INI Tweak",
+  "scopeName": "source.ini-tweak",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#sections" },
+    { "include": "#arrayMutation" },
+    { "include": "#assignment" },
+    { "include": "#invalid" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.semicolon.ini-tweak",
+          "match": "^\\s*[;#].*$"
+        }
+      ]
+    },
+    "sections": {
+      "patterns": [
+        {
+          "name": "entity.name.section.object-path.ini-tweak",
+          "match": "^\\s*(\\[)(/[^\\]]+)(\\])",
+          "captures": {
+            "1": { "name": "punctuation.definition.section.begin.ini-tweak" },
+            "2": { "name": "entity.name.type.unreal-section.ini-tweak" },
+            "3": { "name": "punctuation.definition.section.end.ini-tweak" }
+          }
+        },
+        {
+          "name": "entity.name.section.ini-tweak",
+          "match": "^\\s*(\\[)([^\\]]+)(\\])",
+          "captures": {
+            "1": { "name": "punctuation.definition.section.begin.ini-tweak" },
+            "2": { "name": "entity.name.section.ini-tweak" },
+            "3": { "name": "punctuation.definition.section.end.ini-tweak" }
+          }
+        }
+      ]
+    },
+    "arrayMutation": {
+      "patterns": [
+        {
+          "match": "^\\s*([+\\-!])\\s*([A-Za-z_][\\w.:-]*)(\\s*=)(.*)$",
+          "captures": {
+            "1": { "name": "keyword.operator.array-mutation.unreal.ini-tweak" },
+            "2": { "patterns": [{ "include": "#keyName" }] },
+            "3": { "name": "keyword.operator.assignment.ini-tweak" },
+            "4": { "patterns": [{ "include": "#values" }, { "include": "#inlineComment" }] }
+          }
+        }
+      ]
+    },
+    "assignment": {
+      "patterns": [
+        {
+          "match": "^\\s*([A-Za-z_][\\w.:-]*)(\\s*=)(.*)$",
+          "captures": {
+            "1": { "patterns": [{ "include": "#keyName" }] },
+            "2": { "name": "keyword.operator.assignment.ini-tweak" },
+            "3": { "patterns": [{ "include": "#values" }, { "include": "#inlineComment" }] }
+          }
+        }
+      ]
+    },
+    "keyName": {
+      "patterns": [
+        {
+          "name": "variable.other.cvar.rendering.ini-tweak",
+          "match": "^(?:r|sg|t|au|net|gc|fx|niagara|wp|foliage|grass|p|vr)\\.[\\w.:-]+"
+        },
+        {
+          "name": "variable.parameter.key.ini-tweak",
+          "match": "^[A-Za-z_][\\w.:-]*"
+        }
+      ]
+    },
+    "values": {
+      "patterns": [
+        { "name": "constant.numeric.float.ini-tweak", "match": "\\b[+-]?(?:\\d+\\.\\d*|\\.\\d+)(?:e[+-]?\\d+)?\\b" },
+        { "name": "constant.numeric.integer.ini-tweak", "match": "\\b[+-]?\\d+\\b" },
+        { "name": "constant.language.boolean.ini-tweak", "match": "\\b(?:true|false|yes|no|on|off)\\b" },
+        { "name": "string.quoted.double.ini-tweak", "begin": "\"", "end": "\"" },
+        { "name": "string.quoted.single.ini-tweak", "begin": "'", "end": "'" }
+      ]
+    },
+    "inlineComment": {
+      "patterns": [
+        {
+          "name": "comment.line.inline.ini-tweak",
+          "match": "\\s+[;#].*$"
+        }
+      ]
+    },
+    "invalid": {
+      "patterns": [
+        {
+          "name": "invalid.illegal.ini-tweak",
+          "match": "^(?!\\s*$).+$"
+        }
+      ]
+    }
+  }
+}
