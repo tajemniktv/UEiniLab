@@ -10,6 +10,7 @@ export class SchemaRegistry {
   private sortedEntries: ResolvedCvarEntry[] = [];
   private sortedNames: string[] = [];
   private namespaceBuckets = new Map<string, ResolvedCvarEntry[]>();
+  private searchEntries: Array<{ text: string; entry: ResolvedCvarEntry }> = [];
 
   setPacks(packs: LoadedSchemaPack[]): void {
     this.packs = [...packs].sort((a, b) => a.priority - b.priority);
@@ -36,6 +37,16 @@ export class SchemaRegistry {
     return [...(this.namespaceBuckets.get(namespace.toLowerCase()) ?? [])];
   }
 
+  entriesForCanonicalPrefix(prefix: string): ResolvedCvarEntry[] {
+    const normalizedPrefix = prefix.trim().toLowerCase();
+    if (!normalizedPrefix) return this.all();
+    const namespace = /[._\-\s]/.test(normalizedPrefix)
+      ? normalizedPrefix.split(/[._\-\s]+/, 1)[0]
+      : undefined;
+    const candidates = namespace ? this.entriesForNamespace(namespace) : this.sortedEntries;
+    return candidates.filter((entry) => entry.name.toLowerCase().startsWith(normalizedPrefix));
+  }
+
   fuzzy(name: string, limit = 5): ResolvedCvarEntry[] {
     return fuzzyFind(name, this.names(), limit)
       .map((result) => this.lookup(result.item))
@@ -47,15 +58,10 @@ export class SchemaRegistry {
     if (!normalized) {
       return this.sortedEntries.slice(0, limit);
     }
-    return this.sortedEntries
-      .filter((resolved) => {
-        const entry = resolved.entry;
-        return (
-          entry.name.toLowerCase().includes(normalized) ||
-          entry.help?.toLowerCase().includes(normalized) ||
-          entry.category?.toLowerCase().includes(normalized)
-        );
-      })
+    const terms = normalized.split(/\s+/).filter(Boolean);
+    return this.searchEntries
+      .filter((indexed) => terms.every((term) => indexed.text.includes(term)))
+      .map((indexed) => indexed.entry)
       .slice(0, limit);
   }
 
@@ -64,12 +70,22 @@ export class SchemaRegistry {
     return layers.length > 0 && !layers.some((layer) => layer.role === preferredRole);
   }
 
+  debugIndexStats(): { sortedEntries: number; sortedNames: number; namespaceBuckets: number; searchEntries: number } {
+    return {
+      sortedEntries: this.sortedEntries.length,
+      sortedNames: this.sortedNames.length,
+      namespaceBuckets: this.namespaceBuckets.size,
+      searchEntries: this.searchEntries.length
+    };
+  }
+
   private rebuild(): void {
     this.resolved.clear();
     this.sourceIndex.clear();
     this.sortedEntries = [];
     this.sortedNames = [];
     this.namespaceBuckets.clear();
+    this.searchEntries = [];
     for (const loaded of this.packs) {
       for (const [name, entry] of Object.entries(loaded.pack.cvars)) {
         const normalizedName = (entry.name || name).trim();
@@ -101,6 +117,22 @@ export class SchemaRegistry {
         bucket.push(entry);
         this.namespaceBuckets.set(namespace, bucket);
       }
+      this.searchEntries.push({ entry, text: searchTextFor(entry) });
     }
   }
+}
+
+function searchTextFor(resolved: ResolvedCvarEntry): string {
+  return [
+    resolved.name,
+    resolved.entry.help,
+    resolved.entry.category,
+    resolved.entry.type,
+    resolved.entry.defaultValue,
+    resolved.entry.currentValue,
+    ...(resolved.entry.flags ?? [])
+  ]
+    .filter((part): part is string => Boolean(part))
+    .join(' ')
+    .toLowerCase();
 }

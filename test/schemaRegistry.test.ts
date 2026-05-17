@@ -68,6 +68,45 @@ describe('SchemaRegistry', () => {
     expect(registry.search('game help')[0]?.name).toBe('r.Foo');
   });
 
+  it('uses precomputed search text and prefix buckets without changing completion order', () => {
+    const registry = new SchemaRegistry();
+    const cvars: CvarSchemaPack['cvars'] = {};
+    for (let index = 0; index < 1500; index++) {
+      cvars[`r.Generated.${String(index).padStart(4, '0')}`] = {
+        name: `r.Generated.${String(index).padStart(4, '0')}`,
+        type: 'int',
+        help: index === 1499 ? 'needle category marker' : 'generated setting'
+      };
+    }
+    cvars['r.Generated.Target'] = {
+      name: 'r.Generated.Target',
+      type: 'bool',
+      help: 'target help'
+    };
+    registry.setPacks([
+      {
+        role: 'engine',
+        priority: 1,
+        path: 'generated.jsonc',
+        pack: {
+          schemaVersion: 1,
+          id: 'generated',
+          displayName: 'Generated',
+          target: { engine: 'Unreal Engine' },
+          cvars
+        }
+      }
+    ]);
+
+    const prefixed = registry.entriesForCanonicalPrefix('r.Generated.T').map((entry) => entry.name);
+    expect(prefixed).toEqual(['r.Generated.Target']);
+    expect(registry.search('needle marker', 5).map((entry) => entry.name)).toEqual(['r.Generated.1499']);
+    expect(registry.debugIndexStats()).toMatchObject({
+      sortedEntries: 1501,
+      searchEntries: 1501
+    });
+  });
+
   it('returns defensive copies of precomputed sorted entries and names', () => {
     const registry = new SchemaRegistry();
     registry.setPacks([

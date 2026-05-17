@@ -1,9 +1,9 @@
 import * as vscode from 'vscode';
 import { parseIni } from '../core/iniParser';
-import type { SchemaRegistry } from '../core/schemaRegistry';
+import type { SchemaStorage } from '../storage/schemaStorage';
 import { normalizeBoolean } from '../core/valueInference';
 
-export function registerCodeActionsProvider(context: vscode.ExtensionContext, registry: SchemaRegistry): void {
+export function registerCodeActionsProvider(context: vscode.ExtensionContext, storage: SchemaStorage): void {
   context.subscriptions.push(
     vscode.languages.registerCodeActionsProvider(
       'ini-tweak',
@@ -13,6 +13,7 @@ export function registerCodeActionsProvider(context: vscode.ExtensionContext, re
           const parsed = parseIni(document.getText());
           const offset = document.offsetAt(range.start);
           const node = parsed.keyValues.find((candidate) => offset >= candidate.startOffset && offset <= candidate.endOffset);
+          const registry = storage.registryFor(document.uri);
 
           for (const diagnostic of codeActionContext.diagnostics) {
             if (diagnostic.code === 'unknown-cvar' && node) {

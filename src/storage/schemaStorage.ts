@@ -12,34 +12,66 @@ import {
 } from './bundledSchemas';
 import { activeConfigurationScope, getConfig, workspaceFolder } from './workspaceConfig';
 
+interface RegistryScopeState {
+  registry: SchemaRegistry;
+  schemaWatchDisposables: vscode.Disposable[];
+  reloadTimer?: ReturnType<typeof globalThis.setTimeout>;
+  reloadQueue: Promise<void>;
+}
+
 export class SchemaStorage implements vscode.Disposable {
-  readonly registry = new SchemaRegistry();
   private readonly disposables: vscode.Disposable[] = [];
-  private readonly onDidChangeEmitter = new vscode.EventEmitter<void>();
+  private readonly onDidChangeEmitter = new vscode.EventEmitter<vscode.Uri | undefined>();
   readonly onDidChange = this.onDidChangeEmitter.event;
-  private schemaWatchDisposables: vscode.Disposable[] = [];
-  private reloadTimer: ReturnType<typeof globalThis.setTimeout> | undefined;
-  private reloadQueue: Promise<void> = Promise.resolve();
+  private readonly scopes = new Map<string, RegistryScopeState>();
   private disposed = false;
   private readonly output: vscode.OutputChannel;
 
   constructor(private readonly context: vscode.ExtensionContext) {
     this.output = vscode.window.createOutputChannel('INI Tweak Lab');
     this.disposables.push(this.output);
+    this.disposables.push(
+      vscode.workspace.onDidChangeWorkspaceFolders((event) => {
+        for (const folder of event.removed) {
+          this.disposeScope(folder.uri);
+        }
+        for (const folder of event.added) {
+          void this.reload(folder.uri);
+        }
+      })
+    );
   }
 
-  async reload(): Promise<void> {
+  get registry(): SchemaRegistry {
+    return this.registryFor(activeConfigurationScope());
+  }
+
+  registryFor(scope?: vscode.Uri): SchemaRegistry {
+    return this.stateFor(scope).registry;
+  }
+
+  async reload(scope?: vscode.Uri): Promise<void> {
     if (this.disposed) return;
-    const reload = this.reloadQueue.then(() => (this.disposed ? undefined : this.doReload()));
-    this.reloadQueue = reload.catch(() => undefined);
+    if (!scope) {
+      const folders = vscode.workspace.workspaceFolders;
+      if (folders?.length) {
+        await Promise.all(folders.map((folder) => this.reload(folder.uri)));
+        return;
+      }
+      scope = activeConfigurationScope();
+    }
+    const state = this.stateFor(scope);
+    const reload = state.reloadQueue.then(() => (this.disposed ? undefined : this.doReload(scope)));
+    state.reloadQueue = reload.catch(() => undefined);
     await reload;
   }
 
-  private async doReload(): Promise<void> {
+  private async doReload(scope?: vscode.Uri): Promise<void> {
     if (this.disposed) return;
-    this.disposeSchemaWatchers();
+    const key = scopeKey(scope);
+    const state = this.stateFor(scope);
+    this.disposeSchemaWatchers(key);
 
-    const scope = activeConfigurationScope();
     const config = getConfig(scope);
     const fallbackSchema =
       latestBundledBaseSchema(this.context.extensionPath)?.absolutePath ??
@@ -66,12 +98,12 @@ export class SchemaStorage implements vscode.Disposable {
         role: inferRole(result.pack.id, result.pack.target?.game),
         priority: schemaStack.length - index
       });
-      this.watchSchema(schemaPath);
+      this.watchSchema(schemaPath, key);
     }
 
     if (this.disposed) return;
-    this.registry.setPacks(loaded);
-    this.onDidChangeEmitter.fire();
+    state.registry.setPacks(loaded);
+    this.onDidChangeEmitter.fire(scope);
   }
 
   async ensureWorkspaceSchemaFolder(scope?: vscode.Uri): Promise<string> {
@@ -100,39 +132,84 @@ export class SchemaStorage implements vscode.Disposable {
 
   dispose(): void {
     this.disposed = true;
-    if (this.reloadTimer) globalThis.clearTimeout(this.reloadTimer);
-    this.reloadTimer = undefined;
-    this.disposeSchemaWatchers();
+    for (const key of [...this.scopes.keys()]) {
+      this.disposeScopeByKey(key);
+    }
     for (const disposable of this.disposables) disposable.dispose();
     this.onDidChangeEmitter.dispose();
   }
 
-  private watchSchema(schemaPath: string): void {
+  private stateFor(scope?: vscode.Uri): RegistryScopeState {
+    const key = scopeKey(scope);
+    const existing = this.scopes.get(key);
+    if (existing) return existing;
+    const state: RegistryScopeState = {
+      registry: new SchemaRegistry(),
+      schemaWatchDisposables: [],
+      reloadQueue: Promise.resolve()
+    };
+    this.scopes.set(key, state);
+    return state;
+  }
+
+  private watchSchema(schemaPath: string, key: string): void {
     if (this.disposed) return;
+    const state = this.stateForKey(key);
     const watcher = vscode.workspace.createFileSystemWatcher(new vscode.RelativePattern(path.dirname(schemaPath), path.basename(schemaPath)));
-    this.schemaWatchDisposables.push(
+    state.schemaWatchDisposables.push(
       watcher,
-      watcher.onDidChange(() => this.scheduleReload()),
-      watcher.onDidCreate(() => this.scheduleReload()),
-      watcher.onDidDelete(() => this.scheduleReload())
+      watcher.onDidChange(() => this.scheduleReload(key)),
+      watcher.onDidCreate(() => this.scheduleReload(key)),
+      watcher.onDidDelete(() => this.scheduleReload(key))
     );
   }
 
-  private scheduleReload(): void {
+  private scheduleReload(key: string): void {
     if (this.disposed) return;
-    if (this.reloadTimer) globalThis.clearTimeout(this.reloadTimer);
-    this.reloadTimer = globalThis.setTimeout(() => {
-      this.reloadTimer = undefined;
-      void this.reload().catch((error) => {
+    const state = this.stateForKey(key);
+    if (state.reloadTimer) globalThis.clearTimeout(state.reloadTimer);
+    state.reloadTimer = globalThis.setTimeout(() => {
+      state.reloadTimer = undefined;
+      void this.reload(scopeFromKey(key)).catch((error) => {
         if (!this.disposed) this.output.appendLine(`Background schema reload failed: ${String(error)}`);
       });
     }, 100);
   }
 
-  private disposeSchemaWatchers(): void {
-    for (const disposable of this.schemaWatchDisposables) disposable.dispose();
-    this.schemaWatchDisposables = [];
+  private disposeSchemaWatchers(key: string): void {
+    const state = this.scopes.get(key);
+    if (!state) return;
+    for (const disposable of state.schemaWatchDisposables) disposable.dispose();
+    state.schemaWatchDisposables = [];
   }
+
+  private disposeScope(scope: vscode.Uri): void {
+    this.disposeScopeByKey(scopeKey(scope));
+  }
+
+  private disposeScopeByKey(key: string): void {
+    const state = this.scopes.get(key);
+    if (!state) return;
+    if (state.reloadTimer) globalThis.clearTimeout(state.reloadTimer);
+    this.disposeSchemaWatchers(key);
+    this.scopes.delete(key);
+  }
+
+  private stateForKey(key: string): RegistryScopeState {
+    const existing = this.scopes.get(key);
+    if (existing) return existing;
+    const uri = scopeFromKey(key);
+    return this.stateFor(uri);
+  }
+}
+
+function scopeKey(scope?: vscode.Uri): string {
+  const folder = workspaceFolder(scope);
+  return folder?.uri.toString() ?? scope?.toString() ?? '<workspace>';
+}
+
+function scopeFromKey(key: string): vscode.Uri | undefined {
+  return key === '<workspace>' ? undefined : vscode.Uri.parse(key);
 }
 
 function inferRole(id: string, game: string | null | undefined): SchemaLayerRole {

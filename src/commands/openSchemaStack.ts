@@ -23,7 +23,7 @@ export async function openSchemaStack(storage: SchemaStorage): Promise<void> {
           selected.map((uri) => uri.fsPath),
           activeScopeUri()
         );
-        await storage.reload();
+        await storage.reload(activeScopeUri());
       }
     }
     showSchemaStackPanel(storage);

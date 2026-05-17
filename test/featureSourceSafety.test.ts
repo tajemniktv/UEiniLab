@@ -74,4 +74,12 @@ describe('VS Code feature adapters performance safety', () => {
     expect(source).toContain("'iniTweakLab.selectEngineVersion'");
     expect(source).toContain("'iniTweakLab.createWorkspaceSchema'");
   });
+
+  it('registers schema diff as a read-only command', async () => {
+    const source = await readFile(resolve(here, '../src/commands/index.ts'), 'utf8');
+
+    expect(source).toContain("'iniTweakLab.diffSchemaPacks'");
+    expect(source).toContain('diffSchemaPacks(storage)');
+    expect(source).not.toContain("requireWorkspaceTrust('diff schema packs'");
+  });
 });

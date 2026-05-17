@@ -34,7 +34,7 @@ export async function selectEngineVersion(storage: SchemaStorage, engineVersion?
       const currentStack = getSchemaStack(scope);
       const withoutBundledBase = currentStack.filter((item) => !isBundledBasePath(item));
       await updateSchemaStack([...withoutBundledBase, selected.relativePath], scope);
-      await storage.reload();
+      await storage.reload(scope);
       void vscode.window.showInformationMessage(
         `INI Tweak Lab is now using Unreal Engine ${selected.engineVersion} base CVars.`
       );

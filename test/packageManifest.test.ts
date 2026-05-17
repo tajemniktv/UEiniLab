@@ -80,6 +80,19 @@ describe('extension package manifest', () => {
     expect(packageJson.scripts['test:integration']).toBe('vscode-test --config .vscode-test.mjs');
   });
 
+  it('contributes the schema diff command', async () => {
+    const packageJson = JSON.parse(await readFile(resolve(process.cwd(), 'package.json'), 'utf8')) as {
+      activationEvents: string[];
+      contributes: { commands: Array<{ command: string; title: string }> };
+    };
+
+    expect(packageJson.activationEvents).toContain('onCommand:iniTweakLab.diffSchemaPacks');
+    expect(packageJson.contributes.commands).toContainEqual({
+      command: 'iniTweakLab.diffSchemaPacks',
+      title: 'INI Tweak Lab: Diff Schema Packs'
+    });
+  });
+
   it('declares resource scope for settings that can vary by workspace folder or document', async () => {
     const packageJson = JSON.parse(await readFile(resolve(process.cwd(), 'package.json'), 'utf8')) as {
       contributes: { configuration: { properties: Record<string, { default?: unknown; scope?: string }> } };

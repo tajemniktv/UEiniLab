@@ -1,17 +1,18 @@
 import * as vscode from 'vscode';
 import { parseIni } from '../core/iniParser';
-import type { SchemaRegistry } from '../core/schemaRegistry';
+import type { SchemaStorage } from '../storage/schemaStorage';
 import { getConfig } from '../storage/workspaceConfig';
 
-export function registerInlayHintsProvider(context: vscode.ExtensionContext, registry: SchemaRegistry): void {
+export function registerInlayHintsProvider(context: vscode.ExtensionContext, storage: SchemaStorage): void {
   context.subscriptions.push(
     vscode.languages.registerInlayHintsProvider('ini-tweak', {
       provideInlayHints(document) {
-        const config = getConfig();
+        const config = getConfig(document.uri);
         if (!config.showDumpValuesAsInlayHints) return [];
         const parsed = parseIni(document.getText(), {
           enableInlineCommentParsing: config.enableInlineCommentParsing
         });
+        const registry = storage.registryFor(document.uri);
         const hints: vscode.InlayHint[] = [];
         for (const node of parsed.keyValues) {
           const entry = registry.lookup(node.key)?.entry;

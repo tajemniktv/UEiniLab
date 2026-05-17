@@ -32,7 +32,7 @@ export async function importCvarDump(storage: SchemaStorage): Promise<void> {
 
       const relative = pathForSchemaStack(target, scope);
       await prependSchemaStackEntry(relative, scope);
-      await storage.reload();
+      await storage.reload(scope);
       void vscode.window.showInformationMessage(`Imported ${Object.keys(pack.cvars).length} CVars into ${relative}.`);
     });
   });
