@@ -82,11 +82,12 @@ describe('extension package manifest', () => {
 
   it('declares resource scope for settings that can vary by workspace folder or document', async () => {
     const packageJson = JSON.parse(await readFile(resolve(process.cwd(), 'package.json'), 'utf8')) as {
-      contributes: { configuration: { properties: Record<string, { scope?: string }> } };
+      contributes: { configuration: { properties: Record<string, { default?: unknown; scope?: string }> } };
     };
     const properties = packageJson.contributes.configuration.properties;
 
     for (const setting of [
+      'iniTweakLab.profile',
       'iniTweakLab.schemaStack',
       'iniTweakLab.enableDiagnostics',
       'iniTweakLab.warnUnknownCvars',
@@ -107,6 +108,7 @@ describe('extension package manifest', () => {
     }
 
     expect(properties['iniTweakLab.debug.completions']?.scope).toBe('window');
+    expect(properties['iniTweakLab.completion.matchMode']?.default).toBe('smart');
   });
 
   it('declares limited Workspace Trust support and restricts workspace-writing settings', async () => {

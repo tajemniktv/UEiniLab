@@ -20,6 +20,7 @@ export class SchemaStorage implements vscode.Disposable {
   private schemaWatchDisposables: vscode.Disposable[] = [];
   private reloadTimer: ReturnType<typeof globalThis.setTimeout> | undefined;
   private reloadQueue: Promise<void> = Promise.resolve();
+  private disposed = false;
   private readonly output: vscode.OutputChannel;
 
   constructor(private readonly context: vscode.ExtensionContext) {
@@ -28,12 +29,14 @@ export class SchemaStorage implements vscode.Disposable {
   }
 
   async reload(): Promise<void> {
-    const reload = this.reloadQueue.then(() => this.doReload());
+    if (this.disposed) return;
+    const reload = this.reloadQueue.then(() => (this.disposed ? undefined : this.doReload()));
     this.reloadQueue = reload.catch(() => undefined);
     await reload;
   }
 
   private async doReload(): Promise<void> {
+    if (this.disposed) return;
     this.disposeSchemaWatchers();
 
     const scope = activeConfigurationScope();
@@ -48,8 +51,10 @@ export class SchemaStorage implements vscode.Disposable {
     const loaded: LoadedSchemaPack[] = [];
 
     for (let index = 0; index < schemaStack.length; index++) {
+      if (this.disposed) return;
       const schemaPath = this.resolvePath(schemaStack[index], scope);
       const result = await loadSchemaFile(schemaPath);
+      if (this.disposed) return;
       if (!result.ok || !result.pack) {
         this.output.appendLine(`Schema load failed: ${schemaPath}`);
         for (const error of result.errors) this.output.appendLine(`  ${error}`);
@@ -64,6 +69,7 @@ export class SchemaStorage implements vscode.Disposable {
       this.watchSchema(schemaPath);
     }
 
+    if (this.disposed) return;
     this.registry.setPacks(loaded);
     this.onDidChangeEmitter.fire();
   }
@@ -93,13 +99,16 @@ export class SchemaStorage implements vscode.Disposable {
   }
 
   dispose(): void {
+    this.disposed = true;
     if (this.reloadTimer) globalThis.clearTimeout(this.reloadTimer);
+    this.reloadTimer = undefined;
     this.disposeSchemaWatchers();
     for (const disposable of this.disposables) disposable.dispose();
     this.onDidChangeEmitter.dispose();
   }
 
   private watchSchema(schemaPath: string): void {
+    if (this.disposed) return;
     const watcher = vscode.workspace.createFileSystemWatcher(new vscode.RelativePattern(path.dirname(schemaPath), path.basename(schemaPath)));
     this.schemaWatchDisposables.push(
       watcher,
@@ -110,10 +119,13 @@ export class SchemaStorage implements vscode.Disposable {
   }
 
   private scheduleReload(): void {
+    if (this.disposed) return;
     if (this.reloadTimer) globalThis.clearTimeout(this.reloadTimer);
     this.reloadTimer = globalThis.setTimeout(() => {
       this.reloadTimer = undefined;
-      void this.reload();
+      void this.reload().catch((error) => {
+        if (!this.disposed) this.output.appendLine(`Background schema reload failed: ${String(error)}`);
+      });
     }, 100);
   }
 

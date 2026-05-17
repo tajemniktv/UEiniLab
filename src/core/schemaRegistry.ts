@@ -9,9 +9,7 @@ export class SchemaRegistry {
   private sourceIndex = new Map<string, LayeredCvarEntry[]>();
   private sortedEntries: ResolvedCvarEntry[] = [];
   private sortedNames: string[] = [];
-  private lowercaseNames: string[] = [];
   private namespaceBuckets = new Map<string, ResolvedCvarEntry[]>();
-  private tokenIndex = new Map<string, ResolvedCvarEntry[]>();
 
   setPacks(packs: LoadedSchemaPack[]): void {
     this.packs = [...packs].sort((a, b) => a.priority - b.priority);
@@ -34,16 +32,8 @@ export class SchemaRegistry {
     return [...this.sortedNames];
   }
 
-  lowerNames(): string[] {
-    return [...this.lowercaseNames];
-  }
-
   entriesForNamespace(namespace: string): ResolvedCvarEntry[] {
     return [...(this.namespaceBuckets.get(namespace.toLowerCase()) ?? [])];
-  }
-
-  entriesForToken(token: string): ResolvedCvarEntry[] {
-    return [...(this.tokenIndex.get(token.toLowerCase()) ?? [])];
   }
 
   fuzzy(name: string, limit = 5): ResolvedCvarEntry[] {
@@ -79,9 +69,7 @@ export class SchemaRegistry {
     this.sourceIndex.clear();
     this.sortedEntries = [];
     this.sortedNames = [];
-    this.lowercaseNames = [];
     this.namespaceBuckets.clear();
-    this.tokenIndex.clear();
     for (const loaded of this.packs) {
       for (const [name, entry] of Object.entries(loaded.pack.cvars)) {
         const normalizedName = (entry.name || name).trim();
@@ -105,7 +93,6 @@ export class SchemaRegistry {
 
     this.sortedEntries = [...this.resolved.values()].sort((a, b) => a.name.localeCompare(b.name));
     this.sortedNames = this.sortedEntries.map((entry) => entry.name);
-    this.lowercaseNames = this.sortedNames.map((name) => name.toLowerCase());
 
     for (const entry of this.sortedEntries) {
       const namespace = entry.name.split(/[._\-\s]+/, 1)[0]?.toLowerCase();
@@ -113,12 +100,6 @@ export class SchemaRegistry {
         const bucket = this.namespaceBuckets.get(namespace) ?? [];
         bucket.push(entry);
         this.namespaceBuckets.set(namespace, bucket);
-      }
-      const tokens = new Set(entry.name.toLowerCase().split(/[._\-\s]+/).filter(Boolean));
-      for (const token of tokens) {
-        const matches = this.tokenIndex.get(token) ?? [];
-        matches.push(entry);
-        this.tokenIndex.set(token, matches);
       }
     }
   }

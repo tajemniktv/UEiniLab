@@ -27,21 +27,6 @@ const enginePack: CvarSchemaPack = {
   }
 };
 
-const duplicateTokenPack: CvarSchemaPack = {
-  schemaVersion: 1,
-  id: 'duplicate-token',
-  displayName: 'Duplicate Token',
-  target: { engine: 'Unreal Engine' },
-  generatedFrom: { source: 'example' },
-  cvars: {
-    'Engine.Engine.Version': {
-      name: 'Engine.Engine.Version',
-      kind: 'variable',
-      type: 'string'
-    }
-  }
-};
-
 const gamePack: CvarSchemaPack = {
   schemaVersion: 1,
   id: 'game',
@@ -99,10 +84,4 @@ describe('SchemaRegistry', () => {
     expect(registry.names()).toEqual(['r.EngineOnly', 'r.Foo']);
   });
 
-  it('deduplicates repeated tokens for each entry in the token index', () => {
-    const registry = new SchemaRegistry();
-    registry.setPacks([{ pack: duplicateTokenPack, role: 'engine', priority: 1, path: 'duplicate.jsonc' }]);
-
-    expect(registry.entriesForToken('engine').map((entry) => entry.name)).toEqual(['Engine.Engine.Version']);
-  });
 });
