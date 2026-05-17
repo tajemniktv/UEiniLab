@@ -32,6 +32,7 @@ async function main() {
     sourcesContent: false,
     platform: 'node',
     target: 'node20',
+    mainFields: ['module', 'main'],
     outfile: 'dist/extension.js',
     external: ['vscode'],
     logLevel: 'warning',

@@ -17,6 +17,12 @@ describe('extension package manifest', () => {
     expect(tsconfig.compilerOptions.outDir).toBe('dist');
   });
 
+  it('builds against ESM dependency entrypoints so bundled extensions do not need node_modules', async () => {
+    const esbuildConfig = await readFile(resolve(process.cwd(), 'esbuild.js'), 'utf8');
+
+    expect(esbuildConfig).toContain("mainFields: ['module', 'main']");
+  });
+
   it('auto-associates only known Unreal INI filenames while preserving manual language selection', async () => {
     const packageJson = JSON.parse(await readFile(resolve(process.cwd(), 'package.json'), 'utf8')) as {
       contributes: { languages: Array<{ id: string; extensions?: string[]; filenames?: string[] }> };
