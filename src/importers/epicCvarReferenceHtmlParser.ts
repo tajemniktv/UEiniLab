@@ -94,12 +94,23 @@ function extractCells(rowHtml: string): string[] {
   return [...rowHtml.matchAll(/<td\b[^>]*>([\s\S]*?)<\/td>/gi)].map((match) => match[1]);
 }
 
+function stripHtmlTagsFully(value: string): string {
+  let previous: string;
+  let current = value;
+  do {
+    previous = current;
+    current = current.replace(/<[^>]+>/g, '');
+  } while (current !== previous);
+  return current;
+}
+
 function cleanCell(html: string): string {
   return decodeHtmlEntities(
-    html
-      .replace(/<br\s*\/?>/gi, '\n')
-      .replace(/<\/p>\s*<p\b[^>]*>/gi, '\n')
-      .replace(/<[^>]+>/g, '')
+    stripHtmlTagsFully(
+      html
+        .replace(/<br\s*\/?>/gi, '\n')
+        .replace(/<\/p>\s*<p\b[^>]*>/gi, '\n')
+    )
       .replace(/\s+/g, ' ')
       .trim()
   );
