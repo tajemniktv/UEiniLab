@@ -1,13 +1,11 @@
 import * as vscode from 'vscode';
 import { getLineCompletionContext, type CompletionTextRange } from '../core/completionContext';
 import {
-  findKeyAtLine,
   getKeyCompletions,
   getSectionCompletions,
   getValueCompletions,
   type CompletionCandidate
 } from '../core/completionEngine';
-import { parseIni } from '../core/iniParser';
 import type { SchemaRegistry } from '../core/schemaRegistry';
 import { getConfig } from '../storage/workspaceConfig';
 
@@ -25,20 +23,21 @@ export function registerCompletionProvider(context: vscode.ExtensionContext, reg
     vscode.languages.registerCompletionItemProvider(
       'ini-tweak',
       {
-        provideCompletionItems(document, position, _token, completionContext) {
+        provideCompletionItems(document, position, token, completionContext) {
+          if (token.isCancellationRequested) return undefined;
           const fullLine = document.lineAt(position.line).text;
           const line = fullLine.slice(0, position.character);
           const config = getConfig();
-          const parsed = parseIni(document.getText(), {
-            enableInlineCommentParsing: config.enableInlineCommentParsing
-          });
 
           if (/^\s*\[[^\]]*$/.test(line)) {
             return getSectionCompletions(config.defaultIniSections).map((candidate) => toCompletionItem(candidate));
           }
 
+          const currentContext = getLineCompletionContext(fullLine, position.character);
+          if (token.isCancellationRequested) return undefined;
+
           if (line.includes('=')) {
-            const key = findKeyAtLine(parsed, position.line);
+            const key = currentContext?.kind === 'value' ? currentContext.key : findKeyFromCurrentLine(line);
             if (!key) return [];
             return new vscode.CompletionList(
               getValueCompletions(key, registry).map((candidate) => toCompletionItem(candidate)),
@@ -46,7 +45,6 @@ export function registerCompletionProvider(context: vscode.ExtensionContext, reg
             );
           }
 
-          const currentContext = getLineCompletionContext(fullLine, position.character);
           if (!currentContext) {
             logCompletionDebug(debugChannel, config.debugCompletions, {
               fullLine,
@@ -70,6 +68,7 @@ export function registerCompletionProvider(context: vscode.ExtensionContext, reg
             fuzzyFallback:
               config.completionFuzzyFallback && completionContext.triggerKind === vscode.CompletionTriggerKind.Invoke
           });
+          if (token.isCancellationRequested) return undefined;
           logCompletionDebug(debugChannel, config.debugCompletions, {
             fullLine,
             position,
@@ -139,6 +138,11 @@ function toVsCodeInsertReplaceRange(
     inserting: toVsCodeRange(line, insertRange),
     replacing: toVsCodeRange(line, replaceRange)
   };
+}
+
+function findKeyFromCurrentLine(line: string): string | null {
+  const keyMatch = line.match(/^\s*[+\-!]?\s*([^=;#\s][^=;#]*)=/);
+  return keyMatch?.[1]?.trim() || null;
 }
 
 function logCompletionDebug(

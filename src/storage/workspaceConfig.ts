@@ -20,8 +20,8 @@ export interface IniTweakLabConfig {
   enableInlineCommentParsing: boolean;
 }
 
-export function getConfig(): IniTweakLabConfig {
-  const config = vscode.workspace.getConfiguration('iniTweakLab');
+export function getConfig(scope?: vscode.ConfigurationScope): IniTweakLabConfig {
+  const config = vscode.workspace.getConfiguration('iniTweakLab', scope);
   return {
     profile: config.get('profile', 'unreal-engine'),
     schemaStack: config.get('schemaStack', []),
@@ -48,12 +48,34 @@ export function getConfig(): IniTweakLabConfig {
   };
 }
 
-export async function updateSchemaStack(schemaStack: string[]): Promise<void> {
+export async function updateSchemaStack(schemaStack: string[], scope?: vscode.ConfigurationScope): Promise<void> {
   await vscode.workspace
-    .getConfiguration('iniTweakLab')
+    .getConfiguration('iniTweakLab', scope)
     .update('schemaStack', schemaStack, vscode.ConfigurationTarget.Workspace);
 }
 
-export function workspaceFolder(): vscode.WorkspaceFolder | undefined {
+export function getSchemaStack(scope?: vscode.ConfigurationScope): string[] {
+  return vscode.workspace.getConfiguration('iniTweakLab', scope).get<string[]>('schemaStack', []);
+}
+
+export function workspaceFolder(uri?: vscode.Uri): vscode.WorkspaceFolder | undefined {
+  return workspaceFolderForUri(uri);
+}
+
+export function workspaceFolderForUri(uri?: vscode.Uri): vscode.WorkspaceFolder | undefined {
+  if (uri) return vscode.workspace.getWorkspaceFolder(uri);
+  return activeWorkspaceFolder();
+}
+
+export function activeWorkspaceFolder(): vscode.WorkspaceFolder | undefined {
+  const activeUri = vscode.window.activeTextEditor?.document.uri;
+  if (activeUri) {
+    const activeFolder = vscode.workspace.getWorkspaceFolder(activeUri);
+    if (activeFolder) return activeFolder;
+  }
   return vscode.workspace.workspaceFolders?.[0];
+}
+
+export function activeConfigurationScope(): vscode.Uri | undefined {
+  return activeWorkspaceFolder()?.uri ?? vscode.window.activeTextEditor?.document.uri;
 }

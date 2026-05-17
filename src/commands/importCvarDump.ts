@@ -3,36 +3,39 @@ import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { importCvarDumpText, toJsonc } from '../importers/cvarDumpImporter';
 import type { SchemaStorage } from '../storage/schemaStorage';
-import { updateSchemaStack, workspaceFolder } from '../storage/workspaceConfig';
+import { activeScopeUri, pathForSchemaStack, prependSchemaStackEntry, runStorageCommandWithErrorHandling, withSchemaProgress } from './commandUtils';
 
 export async function importCvarDump(storage: SchemaStorage): Promise<void> {
-  const selected = await vscode.window.showOpenDialog({
-    canSelectMany: false,
-    filters: { 'CVar dumps': ['json', 'jsonc', 'txt', 'log', 'csv'], 'All files': ['*'] },
-    title: 'Import CVar Dump'
-  });
-  const source = selected?.[0];
-  if (!source) return;
+  await runStorageCommandWithErrorHandling(storage, 'Import CVar Dump', async () => {
+    const selected = await vscode.window.showOpenDialog({
+      canSelectMany: false,
+      filters: { 'CVar dumps': ['json', 'jsonc', 'txt', 'log', 'csv'], 'All files': ['*'] },
+      title: 'Import CVar Dump'
+    });
+    const source = selected?.[0];
+    if (!source) return;
 
-  const text = await fs.readFile(source.fsPath, 'utf8');
-  const baseName = path.basename(source.fsPath, path.extname(source.fsPath));
-  const id = sanitizeId(baseName);
-  const pack = importCvarDumpText(text, {
-    id,
-    displayName: `${baseName} CVar Dump`,
-    sourcePath: source.fsPath,
-    game: inferGameName(source.fsPath)
-  });
-  const schemaFolder = await storage.ensureWorkspaceSchemaFolder();
-  const target = path.join(schemaFolder, `${id}.cvars.jsonc`);
-  await fs.writeFile(target, toJsonc(pack), 'utf8');
+    await withSchemaProgress('Importing CVar dump', async () => {
+      const scope = activeScopeUri();
+      const text = await fs.readFile(source.fsPath, 'utf8');
+      const baseName = path.basename(source.fsPath, path.extname(source.fsPath));
+      const id = sanitizeId(baseName);
+      const pack = importCvarDumpText(text, {
+        id,
+        displayName: `${baseName} CVar Dump`,
+        sourcePath: source.fsPath,
+        game: inferGameName(source.fsPath)
+      });
+      const schemaFolder = await storage.ensureWorkspaceSchemaFolder(scope);
+      const target = path.join(schemaFolder, `${id}.cvars.jsonc`);
+      await fs.writeFile(target, toJsonc(pack), 'utf8');
 
-  const folder = workspaceFolder();
-  const relative = folder ? path.relative(folder.uri.fsPath, target).replace(/\\/g, '/') : target;
-  const existing = vscode.workspace.getConfiguration('iniTweakLab').get<string[]>('schemaStack', []);
-  await updateSchemaStack([relative, ...existing.filter((item) => item !== relative)]);
-  await storage.reload();
-  void vscode.window.showInformationMessage(`Imported ${Object.keys(pack.cvars).length} CVars into ${relative}.`);
+      const relative = pathForSchemaStack(target, scope);
+      await prependSchemaStackEntry(relative, scope);
+      await storage.reload();
+      void vscode.window.showInformationMessage(`Imported ${Object.keys(pack.cvars).length} CVars into ${relative}.`);
+    });
+  });
 }
 
 function sanitizeId(value: string): string {

@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "id": "integration",
+  "displayName": "Integration Test Schema",
+  "target": { "engine": "Unreal Engine", "game": "Fixture" },
+  "cvars": {
+    "r.IntegrationKnown": {
+      "name": "r.IntegrationKnown",
+      "type": "int",
+      "description": "Known CVar used by extension-host smoke tests.",
+      "knownValues": {
+        "0": "Off",
+        "1": "On"
+      }
+    }
+  }
+}
