@@ -544,11 +544,10 @@ function toSafeMarkdownHref(href: string): string | undefined {
   const decoded = decodeHtmlEntities(href.trim());
   if (!/^https?:\/\//i.test(decoded)) return undefined;
   return escapeHtml(decoded);
-function inlineMarkdown(value: string): string {
-  return escapeHtml(value)
-    .replace(/`([^`]+)`/g, '<code>$1</code>')
-    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
+}
+
+function decodeHtmlEntities(value: string): string {
+  return value.replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
 }
 
 function escapeHtml(value: string): string {
