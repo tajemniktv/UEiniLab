@@ -1,13 +1,11 @@
 import * as vscode from 'vscode';
 import { getLineCompletionContext, type CompletionTextRange } from '../core/completionContext';
 import {
-  findKeyAtLine,
   getKeyCompletions,
   getSectionCompletions,
   getValueCompletions,
   type CompletionCandidate
 } from '../core/completionEngine';
-import { parseIni } from '../core/iniParser';
 import type { SchemaRegistry } from '../core/schemaRegistry';
 import { getConfig } from '../storage/workspaceConfig';
 
@@ -25,28 +23,19 @@ export function registerCompletionProvider(context: vscode.ExtensionContext, reg
     vscode.languages.registerCompletionItemProvider(
       'ini-tweak',
       {
-        provideCompletionItems(document, position, _token, completionContext) {
+        provideCompletionItems(document, position, token, completionContext) {
+          if (token.isCancellationRequested) return undefined;
           const fullLine = document.lineAt(position.line).text;
           const line = fullLine.slice(0, position.character);
-          const config = getConfig();
-          const parsed = parseIni(document.getText(), {
-            enableInlineCommentParsing: config.enableInlineCommentParsing
-          });
+          const config = getConfig(document.uri);
 
           if (/^\s*\[[^\]]*$/.test(line)) {
             return getSectionCompletions(config.defaultIniSections).map((candidate) => toCompletionItem(candidate));
           }
 
-          if (line.includes('=')) {
-            const key = findKeyAtLine(parsed, position.line);
-            if (!key) return [];
-            return new vscode.CompletionList(
-              getValueCompletions(key, registry).map((candidate) => toCompletionItem(candidate)),
-              false
-            );
-          }
-
           const currentContext = getLineCompletionContext(fullLine, position.character);
+          if (token.isCancellationRequested) return undefined;
+
           if (!currentContext) {
             logCompletionDebug(debugChannel, config.debugCompletions, {
               fullLine,
@@ -70,6 +59,7 @@ export function registerCompletionProvider(context: vscode.ExtensionContext, reg
             fuzzyFallback:
               config.completionFuzzyFallback && completionContext.triggerKind === vscode.CompletionTriggerKind.Invoke
           });
+          if (token.isCancellationRequested) return undefined;
           logCompletionDebug(debugChannel, config.debugCompletions, {
             fullLine,
             position,

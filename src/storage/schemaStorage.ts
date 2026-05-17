@@ -10,7 +10,7 @@ import {
   listBundledBaseSchemas,
   type BundledBaseSchema
 } from './bundledSchemas';
-import { getConfig, workspaceFolder } from './workspaceConfig';
+import { activeConfigurationScope, getConfig, workspaceFolder } from './workspaceConfig';
 
 export class SchemaStorage implements vscode.Disposable {
   readonly registry = new SchemaRegistry();
@@ -29,7 +29,8 @@ export class SchemaStorage implements vscode.Disposable {
     for (const watcher of this.watchers) watcher.dispose();
     this.watchers = [];
 
-    const config = getConfig();
+    const scope = activeConfigurationScope();
+    const config = getConfig(scope);
     const fallbackSchema =
       latestBundledBaseSchema(this.context.extensionPath)?.absolutePath ??
       path.join(this.context.extensionPath, 'schemas/examples/ue5-base.example.cvars.jsonc');
@@ -40,7 +41,7 @@ export class SchemaStorage implements vscode.Disposable {
     const loaded: LoadedSchemaPack[] = [];
 
     for (let index = 0; index < schemaStack.length; index++) {
-      const schemaPath = this.resolvePath(schemaStack[index]);
+      const schemaPath = this.resolvePath(schemaStack[index], scope);
       const result = await loadSchemaFile(schemaPath);
       if (!result.ok || !result.pack) {
         this.output.appendLine(`Schema load failed: ${schemaPath}`);
@@ -60,18 +61,18 @@ export class SchemaStorage implements vscode.Disposable {
     this.onDidChangeEmitter.fire();
   }
 
-  async ensureWorkspaceSchemaFolder(): Promise<string> {
-    const folder = workspaceFolder();
+  async ensureWorkspaceSchemaFolder(scope?: vscode.Uri): Promise<string> {
+    const folder = workspaceFolder(scope);
     if (!folder) throw new Error('Open a workspace folder first.');
     const schemaFolder = path.join(folder.uri.fsPath, '.ini-lab', 'schemas');
     await fs.mkdir(schemaFolder, { recursive: true });
     return schemaFolder;
   }
 
-  resolvePath(rawPath: string): string {
+  resolvePath(rawPath: string, scope?: vscode.Uri): string {
     if (path.isAbsolute(rawPath)) return rawPath;
     if (isBundledBaseSchemaPath(rawPath)) return path.join(this.context.extensionPath, rawPath);
-    const folder = workspaceFolder();
+    const folder = workspaceFolder(scope ?? activeConfigurationScope());
     if (folder) return path.join(folder.uri.fsPath, rawPath);
     return path.join(this.context.extensionPath, rawPath);
   }

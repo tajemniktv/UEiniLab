@@ -1,0 +1,7 @@
+{
+  "iniTweakLab.schemaStack": [
+    ".ini-lab/schemas/integration.cvars.jsonc"
+  ],
+  "iniTweakLab.enableDiagnostics": true,
+  "iniTweakLab.warnUnknownCvars": true
+}

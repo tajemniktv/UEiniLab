@@ -68,4 +68,42 @@ describe('extension package manifest', () => {
     });
     expect(packageJson.activationEvents).toContain('onView:iniTweakLab.panel');
   });
+
+  it('wires a small VS Code extension-host integration test suite', async () => {
+    const packageJson = JSON.parse(await readFile(resolve(process.cwd(), 'package.json'), 'utf8')) as {
+      scripts: Record<string, string>;
+      devDependencies: Record<string, string>;
+    };
+
+    expect(packageJson.devDependencies).toHaveProperty('@vscode/test-cli');
+    expect(packageJson.devDependencies).toHaveProperty('@vscode/test-electron');
+    expect(packageJson.scripts['test:integration']).toBe('vscode-test --config .vscode-test.mjs');
+  });
+
+  it('keeps packaging focused on runtime extension assets', async () => {
+    const ignore = await readFile(resolve(process.cwd(), '.vscodeignore'), 'utf8');
+    const rules = ignore
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0 && !line.startsWith('#'));
+    const excluded = rules.filter((line) => !line.startsWith('!'));
+
+    expect(excluded).toContain('src/**');
+    expect(excluded).toContain('test/**');
+    expect(excluded).toContain('SchemaSource/**');
+    expect(excluded).not.toContain('dist/**');
+    expect(excluded).not.toContain('schemas/**');
+    expect(excluded).not.toContain('resources/**');
+  });
+
+  it('has a basic CI workflow for build, tests, lint, and package verification', async () => {
+    const workflow = await readFile(resolve(process.cwd(), '.github/workflows/ci.yml'), 'utf8');
+
+    expect(workflow).toContain('npm ci');
+    expect(workflow).toContain('npm run compile');
+    expect(workflow).toContain('npm test -- --run');
+    expect(workflow).toContain('npm run test:integration');
+    expect(workflow).toContain('npm run lint');
+    expect(workflow).toContain('npm run package:verify');
+  });
 });
