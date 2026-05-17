@@ -2,9 +2,10 @@ import * as vscode from 'vscode';
 import { diffSchemaPacks as diffSchemaPacksCore, renderSchemaDiffMarkdown } from '../core/schemaDiff';
 import type { LoadedSchemaPack } from '../core/schemaTypes';
 import type { SchemaStorage } from '../storage/schemaStorage';
+import type { WorkbenchController } from '../webview/uiViewProvider';
 import { activeScopeUri, runStorageCommandWithErrorHandling } from './commandUtils';
 
-export async function diffSchemaPacks(storage: SchemaStorage): Promise<void> {
+export async function diffSchemaPacks(storage: SchemaStorage, workbench: WorkbenchController): Promise<void> {
   await runStorageCommandWithErrorHandling(storage, 'Diff Schema Packs', async () => {
     const scope = activeScopeUri();
     const packs = storage
@@ -12,7 +13,12 @@ export async function diffSchemaPacks(storage: SchemaStorage): Promise<void> {
       .getPacks()
       .sort((a, b) => b.priority - a.priority);
     if (packs.length < 2) {
-      void vscode.window.showInformationMessage('Load at least two schema packs before running a schema diff.');
+      workbench.setWorkbenchResult({
+        kind: 'error',
+        title: 'Schema diff unavailable',
+        markdown: 'Load at least two schema packs before running a schema diff.'
+      });
+      await workbench.focusWorkbench('actions');
       return;
     }
 
@@ -25,8 +31,8 @@ export async function diffSchemaPacks(storage: SchemaStorage): Promise<void> {
     if (!after) return;
 
     const markdown = renderSchemaDiffMarkdown(diffLoadedSchemaPacks(before, after));
-    const document = await vscode.workspace.openTextDocument({ language: 'markdown', content: markdown });
-    await vscode.window.showTextDocument(document, vscode.ViewColumn.Beside);
+    workbench.setWorkbenchResult({ kind: 'diff', title: 'Schema diff', markdown });
+    await workbench.focusWorkbench('diff');
   });
 }
 

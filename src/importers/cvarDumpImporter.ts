@@ -1,9 +1,9 @@
-import type { CvarSchemaPack } from '../core/schemaTypes';
 import { parseSchemaText } from '../core/schemaLoader';
-import { parseJsonCvarDump } from './jsonCvarDumpParser';
+import type { CvarSchemaPack } from '../core/schemaTypes';
 import { parseDumpConsoleCommandsText } from './dumpConsoleCommandsTextParser';
-import { parseUnrealHelpText } from './unrealHelpTextParser';
 import { parseFallbackLines } from './fallbackLineParser';
+import { parseJsonCvarDump } from './jsonCvarDumpParser';
+import { parseUnrealHelpText } from './unrealHelpTextParser';
 
 export interface ImportOptions {
   id: string;

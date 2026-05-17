@@ -14,7 +14,7 @@ export function validateCvarValue(entry: CvarEntry, rawValue: string): ValueVali
   }
 
   if (entry.knownValues && Object.keys(entry.knownValues).length > 0) {
-    if (!Object.prototype.hasOwnProperty.call(entry.knownValues, value)) {
+    if (!Object.hasOwn(entry.knownValues, value)) {
       return {
         ok: false,
         code: 'invalid-enum',

@@ -2,7 +2,7 @@
   "name": "tajs-ue-ini-lab",
   "displayName": "Taj's UE ini Lab",
   "description": "Schema-backed Unreal Engine and game INI editing, validation, documentation, comparison, and CVar research.",
-  "version": "1.1.1",
+  "version": "1.2.4",
   "publisher": "TajemnikTV",
   "repository": {
     "url": "https://github.com/tajemniktv/UEiniLab",
@@ -28,21 +28,7 @@
   },
   "activationEvents": [
     "onView:iniTweakLab.panel",
-    "onLanguage:ini-tweak",
-    "onCommand:iniTweakLab.importCvarDump",
-    "onCommand:iniTweakLab.importSchemaFile",
-    "onCommand:iniTweakLab.validateCurrentFile",
-    "onCommand:iniTweakLab.generateTweakReport",
-    "onCommand:iniTweakLab.explainSelectedSetting",
-    "onCommand:iniTweakLab.compareCurrentIniAgainstActiveSchema",
-    "onCommand:iniTweakLab.diffSchemaPacks",
-    "onCommand:iniTweakLab.openSchemaStack",
-    "onCommand:iniTweakLab.selectEngineVersion",
-    "onCommand:iniTweakLab.createWorkspaceSchema",
-    "onCommand:iniTweakLab.generateUnrealRendererBlock",
-    "onCommand:iniTweakLab.sortCurrentSection",
-    "onCommand:iniTweakLab.commentOutSelectedTweaks",
-    "onCommand:iniTweakLab.searchActiveCVars"
+    "onStartupFinished"
   ],
   "main": "./dist/extension.js",
   "contributes": {
@@ -155,7 +141,9 @@
       "iniTweakLab": [
         {
           "id": "iniTweakLab.panel",
-          "name": "Workbench"
+          "name": "Workbench",
+          "icon": "resources/activity-icon.svg",
+          "type": "webview"
         }
       ]
     },
@@ -385,6 +373,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/node": "^25.8.0",
     "@types/vscode": "^1.95.0",
     "@typescript-eslint/eslint-plugin": "^8.13.0",
@@ -393,7 +382,6 @@
     "@vscode/test-electron": "^2.5.2",
     "@vscode/vsce": "^3.9.1",
     "esbuild": "^0.28.0",
-    "@eslint/js": "^10.0.1",
     "eslint": "^10.4.0",
     "npm-run-all": "^4.1.5",
     "prettier": "^3.3.3",

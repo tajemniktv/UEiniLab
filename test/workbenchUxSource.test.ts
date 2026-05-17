@@ -1,0 +1,50 @@
+/// <reference types="node" />
+/// <reference types="vitest/globals" />
+
+import { readFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
+import { describe, expect, it } from 'vitest';
+
+describe('Workbench UX source contracts', () => {
+  it('updates CVar search results without replacing the whole webview document', async () => {
+    const source = await readFile(resolve(process.cwd(), 'src/webview/uiViewProvider.ts'), 'utf8');
+
+    expect(source).toMatch(/case 'searchCvars':[\s\S]*this\.postCvarResults\(\);[\s\S]*return;/);
+    expect(source).toContain("command: 'replaceCvarResults'");
+    expect(source).toContain('results: cvarResults.map(toWorkbenchCvarResult)');
+    expect(source).toContain("[data-cvar-results]");
+  });
+
+  it('keeps result actions available after a result has rendered', async () => {
+    const source = await readFile(resolve(process.cwd(), 'src/webview/uiViewProvider.ts'), 'utf8');
+
+    expect(source).toContain('const resultActions');
+    expect(source).toMatch(/return `<section class="result">[\s\S]*\$\{action\}[\s\S]*\$\{markdownToHtml/);
+  });
+
+  it('offers a reload-window action when a different extension version activates', async () => {
+    const source = await readFile(resolve(process.cwd(), 'src/extension.ts'), 'utf8');
+
+    expect(source).toContain('iniTweakLab.lastActivatedVersion');
+    expect(source).toContain('workbench.action.reloadWindow');
+  });
+
+  it('supports expected markdown structures in Workbench results', async () => {
+    const source = await readFile(resolve(process.cwd(), 'src/webview/uiViewProvider.ts'), 'utf8');
+
+    expect(source).toContain("line.startsWith('### ')");
+    expect(source).toContain('const listItem = line.match');
+    expect(source).toContain('parseTableCells');
+    expect(source).toContain("line.startsWith('```')");
+    expect(source).toContain('renderMarkdownLink');
+    expect(source).toContain('toSafeMarkdownHref');
+  });
+
+  it('keeps schema-diff precondition errors visible in the Workbench', async () => {
+    const source = await readFile(resolve(process.cwd(), 'src/commands/diffSchemaPacks.ts'), 'utf8');
+
+    expect(source).toContain("title: 'Schema diff unavailable'");
+    expect(source).toContain("await workbench.focusWorkbench('actions')");
+    expect(source).not.toContain("await workbench.focusWorkbench('schemaStack')");
+  });
+});

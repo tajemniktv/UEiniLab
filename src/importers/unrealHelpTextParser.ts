@@ -8,7 +8,7 @@ export function parseUnrealHelpText(text: string): Record<string, CvarEntry> {
     const first = lines[0];
     if (!first) continue;
     const name = first.match(/^([A-Za-z_][\w.:-]+)/)?.[1];
-    if (!name || !name.includes('.')) continue;
+    if (!name?.includes('.')) continue;
     const help = lines.slice(1).join(' ');
     cvars[name] = {
       name,

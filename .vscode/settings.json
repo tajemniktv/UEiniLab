@@ -1,0 +1,6 @@
+{
+	"iniTweakLab.schemaStack": [
+		".ini-lab/schemas/workspace-overrides.cvars.jsonc",
+		"schemas/ue5.7-base.cvars.jsonc"
+	]
+}

@@ -44,13 +44,11 @@ describe('multi-root schema routing source contracts', () => {
     }
   });
 
-  it('active-editor commands and webviews use the active scope registry', async () => {
+  it('active-editor commands and the Workbench use the active scope registry', async () => {
     const files = [
       'src/commands/generateReport.ts',
       'src/commands/explainSelectedSetting.ts',
-      'src/commands/searchCvars.ts',
-      'src/webview/uiViewProvider.ts',
-      'src/webview/cvarBrowserPanel.ts'
+      'src/webview/uiViewProvider.ts'
     ];
 
     for (const file of files) {
@@ -60,13 +58,13 @@ describe('multi-root schema routing source contracts', () => {
     }
   });
 
-  it('schema stack panel captures its opening scope instead of recomputing focus-sensitive active scope', async () => {
-    const panel = await source('src/webview/schemaStackPanel.ts');
+  it('unified Workbench owns schema stack rendering and updates the captured active scope', async () => {
+    const panel = await source('src/webview/uiViewProvider.ts');
 
     expect(panel).toContain('const scope = activeScopeUri();');
-    expect(panel).toContain('renderHtml(storage, scope)');
-    expect(panel).toContain('selectEngineVersionForScope(storage, scope, message.engineVersion)');
-    expect(panel).not.toContain('function renderHtml(storage: SchemaStorage): string');
+    expect(panel).toContain("this.state.activeView = 'schemaStack'");
+    expect(panel).toContain('updateSchemaStack([...withoutBundledBase, selected.relativePath], scope)');
+    expect(panel).not.toContain('createWebviewPanel');
   });
 
   it('configuration changes reload only affected workspace folders where possible', async () => {
