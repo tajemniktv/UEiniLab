@@ -30,6 +30,20 @@ export default [
     }
   },
   {
+    files: ['*.js', 'scripts/**/*.js'],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: 'commonjs',
+      globals: {
+        console: 'readonly',
+        process: 'readonly',
+        require: 'readonly',
+        __dirname: 'readonly',
+        URL: 'readonly'
+      }
+    }
+  },
+  {
     files: ['test/**/*.js'],
     languageOptions: {
       ecmaVersion: 2022,

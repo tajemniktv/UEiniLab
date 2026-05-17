@@ -1,63 +1,64 @@
 import { randomBytes } from 'node:crypto';
 import * as vscode from 'vscode';
-import type { SchemaStorage } from '../storage/schemaStorage';
 import { activeScopeUri } from '../commands/commandUtils';
+import type { ResolvedCvarEntry } from '../core/schemaMerge';
+import type { LoadedSchemaPack } from '../core/schemaTypes';
+import { isBundledBaseSchemaPath } from '../storage/bundledSchemas';
+import type { SchemaStorage } from '../storage/schemaStorage';
+import { getSchemaStack, updateSchemaStack } from '../storage/workspaceConfig';
+import {
+  isSupportedWorkbenchMessage,
+  WORKBENCH_RUN_COMMANDS,
+  type WorkbenchMessage,
+  type WorkbenchResult,
+  type WorkbenchView
+} from './workbenchMessages';
 
-const SUPPORTED_WEBVIEW_COMMANDS: ReadonlySet<string> = new Set([
-  'iniTweakLab.openSchemaStack',
-  'iniTweakLab.importCvarDump',
-  'iniTweakLab.importSchemaFile',
-  'iniTweakLab.createWorkspaceSchema',
-  'iniTweakLab.searchActiveCVars',
-  'iniTweakLab.validateCurrentFile',
-  'iniTweakLab.generateTweakReport',
-  'iniTweakLab.compareCurrentIniAgainstActiveSchema',
-  'iniTweakLab.diffSchemaPacks',
-  'iniTweakLab.explainSelectedSetting',
-  'iniTweakLab.generateUnrealRendererBlock',
-  'iniTweakLab.sortCurrentSection',
-  'iniTweakLab.commentOutSelectedTweaks',
-  'iniTweakLab.selectEngineVersion'
-] as const);
-
-interface WebviewMessage {
-  command: string;
-  engineVersion?: string;
+export interface WorkbenchController {
+  focusWorkbench(view?: WorkbenchView): Promise<void>;
+  setWorkbenchResult(result: WorkbenchResult): void;
+  refreshWorkbench(): void;
 }
 
-export class IniTweakLabViewProvider implements vscode.WebviewViewProvider {
+interface WorkbenchState {
+  activeView: WorkbenchView;
+  cvarQuery: string;
+  result?: WorkbenchResult;
+}
+
+export class IniTweakLabViewProvider implements vscode.WebviewViewProvider, WorkbenchController {
   static readonly viewType = 'iniTweakLab.panel';
+
+  private readonly state: WorkbenchState = {
+    activeView: 'overview',
+    cvarQuery: ''
+  };
+  private webviewView?: vscode.WebviewView;
 
   constructor(private readonly storage: SchemaStorage) {}
 
   resolveWebviewView(webviewView: vscode.WebviewView): void {
+    this.storage.outputChannel().appendLine(`Workbench webview resolved: ${IniTweakLabViewProvider.viewType}`);
+    console.info(`Workbench webview resolved: ${IniTweakLabViewProvider.viewType}`);
+    this.webviewView = webviewView;
     webviewView.webview.options = { enableScripts: true, localResourceRoots: [] };
     const disposables: vscode.Disposable[] = [];
     disposables.push(
       webviewView.webview.onDidReceiveMessage((message: unknown) => {
-        if (!isSupportedWebviewMessage(message)) {
-          this.storage.outputChannel().appendLine(`Ignored unsupported webview message: ${safeSerializeMessage(message)}`);
+        if (!isSupportedWorkbenchMessage(message)) {
+          this.storage.outputChannel().appendLine(`Ignored unsupported Workbench message: ${safeSerializeMessage(message)}`);
           return;
         }
-        if (message.command === 'iniTweakLab.selectEngineVersion') {
-          const isKnownVersion = this.storage
-            .bundledBaseSchemas()
-            .some((schema) => schema.engineVersion === message.engineVersion);
-          if (!message.engineVersion || !isKnownVersion) return;
-          void vscode.commands.executeCommand(message.command, message.engineVersion);
-          return;
-        }
-        void executeSupportedWebviewCommand(message.command);
+        void this.handleMessage(message);
       })
     );
-    const refresh = (): void => {
-      webviewView.webview.html = this.render();
-    };
+    const refresh = (): void => this.refreshWorkbench();
     refresh();
     disposables.push(this.storage.onDidChange(refresh));
     disposables.push(vscode.window.onDidChangeActiveTextEditor(refresh));
     disposables.push(
       webviewView.onDidDispose(() => {
+        this.webviewView = undefined;
         while (disposables.length > 0) {
           disposables.pop()?.dispose();
         }
@@ -65,158 +66,362 @@ export class IniTweakLabViewProvider implements vscode.WebviewViewProvider {
     );
   }
 
+  async focusWorkbench(view: WorkbenchView = 'overview'): Promise<void> {
+    this.state.activeView = view;
+    this.refreshWorkbench();
+    await vscode.commands.executeCommand(`${IniTweakLabViewProvider.viewType}.focus`);
+    this.storage.outputChannel().appendLine(`Workbench focus requested: ${view}`);
+  }
+
+  setWorkbenchResult(result: WorkbenchResult): void {
+    this.state.result = result;
+    this.state.activeView = result.kind === 'error' ? 'actions' : result.kind;
+    this.refreshWorkbench();
+  }
+
+  refreshWorkbench(): void {
+    if (!this.webviewView) return;
+    this.webviewView.webview.html = this.render();
+  }
+
+  private postCvarResults(): void {
+    if (!this.webviewView) return;
+    const cvarResults = this.storage.registryFor(activeScopeUri()).search(this.state.cvarQuery, 100);
+    void this.webviewView.webview.postMessage({
+      command: 'replaceCvarResults',
+      html: this.renderCvarResults(cvarResults)
+    });
+  }
+
+  private async handleMessage(message: WorkbenchMessage): Promise<void> {
+    switch (message.command) {
+      case 'setView':
+        this.state.activeView = message.view;
+        this.refreshWorkbench();
+        return;
+      case 'selectEngineVersion':
+        await this.selectEngineVersion(message.engineVersion);
+        return;
+      case 'searchCvars':
+        this.state.cvarQuery = message.query ?? '';
+        this.state.activeView = 'cvars';
+        this.postCvarResults();
+        return;
+      case 'insertCvar':
+        await this.insertCvar(message.name);
+        return;
+      case 'generateReport':
+        await vscode.commands.executeCommand('iniTweakLab.generateTweakReport');
+        return;
+      case 'showDiff':
+        await vscode.commands.executeCommand('iniTweakLab.diffSchemaPacks');
+        return;
+      case 'explainSelection':
+        await vscode.commands.executeCommand('iniTweakLab.explainSelectedSetting');
+        return;
+      case 'runCommand':
+        if (WORKBENCH_RUN_COMMANDS.has(message.extensionCommand)) {
+          await vscode.commands.executeCommand(message.extensionCommand);
+        }
+        return;
+    }
+  }
+
+  private async selectEngineVersion(engineVersion: string | undefined): Promise<void> {
+    if (!engineVersion) return;
+    if (!vscode.workspace.isTrusted) {
+      this.setWorkbenchResult({
+        kind: 'error',
+        title: 'Workspace trust required',
+        markdown: 'Trust this workspace to update the active schema stack.'
+      });
+      return;
+    }
+    const selected = this.storage.bundledBaseSchemas().find((schema) => schema.engineVersion === engineVersion);
+    if (!selected) return;
+    const scope = activeScopeUri();
+    const currentStack = getSchemaStack(scope);
+    const withoutBundledBase = currentStack.filter((item) => !isBundledBaseSchemaPath(item));
+    await updateSchemaStack([...withoutBundledBase, selected.relativePath], scope);
+    await this.storage.reload(scope);
+    this.state.activeView = 'schemaStack';
+    this.refreshWorkbench();
+  }
+
+  private async insertCvar(name: string): Promise<void> {
+    const editor = vscode.window.activeTextEditor;
+    if (!editor) {
+      this.setWorkbenchResult({
+        kind: 'error',
+        title: 'No active editor',
+        markdown: `Open an INI file before inserting \`${name}\`.`
+      });
+      return;
+    }
+    const entry = this.storage.registryFor(activeScopeUri() ?? editor.document.uri).lookup(name);
+    await editor.insertSnippet(new vscode.SnippetString(`${name}=${entry?.entry.defaultValue ?? '$1'}`));
+  }
+
   private render(): string {
     const nonce = getNonce();
     const scope = activeScopeUri();
     const registry = this.storage.registryFor(scope);
-    const packs = registry.getPacks();
+    const packs = registry.getPacks().sort((a, b) => b.priority - a.priority);
     const activeBase = packs.find((pack) => /^ue\d+\.\d+-base$/i.test(pack.pack.id));
     const cvarCount = registry.all().length;
     const activeScope = scope ? (vscode.workspace.getWorkspaceFolder(scope)?.name ?? scope.fsPath) : 'Workspace';
-    const versions = this.storage
-      .bundledBaseSchemas()
-      .map((schema) => {
-        const active = schema.engineVersion === activeBase?.pack.target?.engineVersion;
-        return `<button class="version ${active ? 'active' : ''}" data-engine-version="${escapeHtml(schema.engineVersion)}">UE ${escapeHtml(schema.engineVersion)}</button>`;
-      })
-      .join('');
-    const stackRows = packs
-      .sort((a, b) => b.priority - a.priority)
-      .map(
-        (pack) =>
-          `<tr><td>${escapeHtml(pack.role)}</td><td>${escapeHtml(pack.pack.displayName)}</td><td>${Object.keys(pack.pack.cvars).length}</td></tr>`
-      )
-      .join('');
-    const quickActions = [
-      ['Search CVars', 'iniTweakLab.searchActiveCVars'],
-      ['Validate Current File', 'iniTweakLab.validateCurrentFile'],
-      ['Generate Report', 'iniTweakLab.generateTweakReport'],
-      ['Explain Setting', 'iniTweakLab.explainSelectedSetting']
-    ];
-    const schemaActions = [
-      ['Open Schema Stack', 'iniTweakLab.openSchemaStack'],
-      ['Import CVar Dump', 'iniTweakLab.importCvarDump'],
-      ['Create Workspace Schema', 'iniTweakLab.createWorkspaceSchema']
-    ];
-    const reportActions = [
-      ['Compare Current INI', 'iniTweakLab.compareCurrentIniAgainstActiveSchema'],
-      ['Diff Schema Packs', 'iniTweakLab.diffSchemaPacks'],
-      ['Generate Renderer Block', 'iniTweakLab.generateUnrealRendererBlock']
-    ];
-    const quickActionButtons = quickActions
-      .map(
-        ([label, command]) =>
-          `<button data-command="${escapeHtml(command)}">${escapeHtml(label)}</button>`
-      )
-      .join('');
-    const schemaActionButtons = schemaActions
-      .map(([label, command]) => `<button data-command="${escapeHtml(command)}">${escapeHtml(label)}</button>`)
-      .join('');
-    const reportActionButtons = reportActions
-      .map(([label, command]) => `<button data-command="${escapeHtml(command)}">${escapeHtml(label)}</button>`)
-      .join('');
+    const query = this.state.cvarQuery;
+    const cvarResults = registry.search(query, 100);
     return `<!doctype html>
 <html><head><meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'nonce-${nonce}'; script-src 'nonce-${nonce}';">
 <style nonce="${nonce}">
-body{font-family:var(--vscode-font-family);padding:12px;color:var(--vscode-foreground)}
-.stat{border:1px solid var(--vscode-panel-border);border-radius:6px;padding:8px;margin-bottom:8px}
-.stat strong{display:block;font-size:12px;color:var(--vscode-descriptionForeground);text-transform:uppercase;letter-spacing:.04em}
-.stat span{font-size:16px}.actions,.versions{display:flex;flex-direction:column;gap:6px}.versions{margin-bottom:12px}
-button{width:100%;text-align:left;border:0;border-radius:4px;padding:8px;background:var(--vscode-button-secondaryBackground);color:var(--vscode-button-secondaryForeground);cursor:pointer}
-h2{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--vscode-descriptionForeground);margin:14px 0 6px}
-button:hover{background:var(--vscode-button-secondaryHoverBackground)}button.active{background:var(--vscode-button-background);color:var(--vscode-button-foreground)}
-table{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:12px}td,th{border:1px solid var(--vscode-panel-border);padding:4px;text-align:left;vertical-align:top}
+:root{color-scheme:dark light}
+body{font-family:var(--vscode-font-family);font-size:12px;margin:0;color:var(--vscode-foreground);background:var(--vscode-sideBar-background)}
+button,input{font:inherit}
+.shell{display:flex;flex-direction:column;min-height:100vh}
+.tabs{display:flex;gap:2px;overflow:auto;border-bottom:1px solid var(--vscode-panel-border);background:var(--vscode-sideBarSectionHeader-background)}
+.tab{border:0;border-radius:0;padding:8px 10px;background:transparent;color:var(--vscode-descriptionForeground);cursor:pointer;white-space:nowrap}
+.tab:hover,.tab:focus{background:var(--vscode-list-hoverBackground);color:var(--vscode-foreground);outline:1px solid var(--vscode-focusBorder);outline-offset:-1px}
+.tab.active{background:var(--vscode-list-activeSelectionBackground);color:var(--vscode-list-activeSelectionForeground)}
+main{padding:12px;display:flex;flex-direction:column;gap:12px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px}
+.stat,.empty,.result,.section{border:1px solid var(--vscode-panel-border);background:var(--vscode-editor-background);border-radius:6px;padding:10px}
+.stat strong,.eyebrow{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--vscode-descriptionForeground);margin-bottom:4px}
+.stat span{font-size:15px;font-variant-numeric:tabular-nums}
+h1,h2{margin:0 0 8px}h1{font-size:16px}h2{font-size:13px}.muted{color:var(--vscode-descriptionForeground)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}.actions{display:grid;grid-template-columns:1fr;gap:6px}
+.button{border:0;border-radius:4px;padding:8px;text-align:left;background:var(--vscode-button-secondaryBackground);color:var(--vscode-button-secondaryForeground);cursor:pointer}
+.button:hover,.button:focus{background:var(--vscode-button-secondaryHoverBackground);outline:1px solid var(--vscode-focusBorder);outline-offset:1px}.button.primary{background:var(--vscode-button-background);color:var(--vscode-button-foreground)}
+table{width:100%;border-collapse:collapse;font-size:11px}td,th{border:1px solid var(--vscode-panel-border);padding:5px;text-align:left;vertical-align:top}code,pre{font-family:var(--vscode-editor-font-family)}
+.search{display:flex;gap:6px}.search input{min-width:0;flex:1;border:1px solid var(--vscode-input-border,var(--vscode-panel-border));background:var(--vscode-input-background);color:var(--vscode-input-foreground);padding:7px;border-radius:4px}
+.results{display:grid;gap:6px}.cvar{border:1px solid var(--vscode-panel-border);border-radius:6px;padding:8px;background:var(--vscode-editor-background)}.cvar header{display:flex;gap:8px;align-items:flex-start;justify-content:space-between}
+.meta{color:var(--vscode-descriptionForeground);font-size:11px}.markdown{white-space:normal}.markdown pre{white-space:pre-wrap}.markdown li{margin-bottom:3px}
 </style></head><body>
-<div class="stat"><strong>Base Schema</strong><span>${escapeHtml(activeBase?.pack.displayName ?? 'None selected')}</span></div>
-<div class="stat"><strong>Active Scope</strong><span>${escapeHtml(activeScope)}</span></div>
-<div class="stat"><strong>Active CVars</strong><span>${cvarCount}</span></div>
-<h2>Active Schema</h2>
-<div class="versions">${versions || '<div class="stat"><span>No bundled schemas found</span></div>'}</div>
-<h2>Schema Stack</h2>
-${stackRows ? `<table><thead><tr><th>Role</th><th>Name</th><th>CVars</th></tr></thead><tbody>${stackRows}</tbody></table>` : '<div class="stat"><span>No schemas loaded</span></div>'}
-<h2>CVar Browser/Search</h2>
-<div class="actions">
-  ${quickActionButtons}
-</div>
-<h2>Reports</h2>
-<div class="actions">
-  ${reportActionButtons}
-</div>
-<h2>Quick Actions</h2>
-<div class="actions">
-  ${schemaActionButtons}
+<div class="shell">
+${this.renderTabs()}
+<main>
+${this.renderStats(activeBase?.pack.displayName ?? 'None selected', activeScope, cvarCount)}
+${this.renderActiveView(packs, cvarResults)}
+</main>
 </div>
 <script nonce="${nonce}">
 const vscode = acquireVsCodeApi();
-document.querySelectorAll('[data-command]').forEach((button) => {
-  button.addEventListener('click', () => vscode.postMessage({ command: button.dataset.command }));
+document.querySelectorAll('[data-view]').forEach((button) => {
+  button.addEventListener('click', () => vscode.postMessage({ command: 'setView', view: button.dataset.view }));
 });
-document.querySelectorAll('[data-engine-version]').forEach((button) => {
-  button.addEventListener('click', () => vscode.postMessage({ command: 'iniTweakLab.selectEngineVersion', engineVersion: button.dataset.engineVersion }));
+document.addEventListener('click', (event) => {
+  const button = event.target.closest('button');
+  if (!button) return;
+  if (button.dataset.engineVersion) {
+    vscode.postMessage({ command: 'selectEngineVersion', engineVersion: button.dataset.engineVersion });
+    return;
+  }
+  if (button.dataset.insertCvar) {
+    vscode.postMessage({ command: 'insertCvar', name: button.dataset.insertCvar });
+    return;
+  }
+  if (button.dataset.runCommand) {
+    vscode.postMessage({ command: 'runCommand', extensionCommand: button.dataset.runCommand });
+    return;
+  }
+  if (button.dataset.workbenchCommand) {
+    vscode.postMessage({ command: button.dataset.workbenchCommand });
+  }
+});
+const search = document.querySelector('[data-cvar-search]');
+if (search) {
+  search.addEventListener('input', () => vscode.postMessage({ command: 'searchCvars', query: search.value }));
+}
+window.addEventListener('message', (event) => {
+  if (event.data?.command !== 'replaceCvarResults') return;
+  const results = document.querySelector('[data-cvar-results]');
+  if (results) results.innerHTML = event.data.html;
 });
 </script>
 </body></html>`;
   }
+
+  private renderTabs(): string {
+    const tabs: Array<[WorkbenchView, string]> = [
+      ['overview', 'Overview'],
+      ['cvars', 'CVars'],
+      ['schemaStack', 'Schema Stack'],
+      ['report', 'Report'],
+      ['diff', 'Diff'],
+      ['explain', 'Explain'],
+      ['actions', 'Actions']
+    ];
+    return `<nav class="tabs" aria-label="Workbench views">${tabs
+      .map(
+        ([view, label]) =>
+          `<button class="tab ${this.state.activeView === view ? 'active' : ''}" data-view="${view}" type="button">${label}</button>`
+      )
+      .join('')}</nav>`;
+  }
+
+  private renderStats(baseSchema: string, activeScope: string, cvarCount: number): string {
+    return `<section class="stats" aria-label="Active schema summary">
+<div class="stat"><strong>Base schema</strong><span>${escapeHtml(baseSchema)}</span></div>
+<div class="stat"><strong>Scope</strong><span>${escapeHtml(activeScope)}</span></div>
+<div class="stat"><strong>Active CVars</strong><span>${cvarCount}</span></div>
+</section>`;
+  }
+
+  private renderActiveView(packs: LoadedSchemaPack[], cvarResults: ResolvedCvarEntry[]): string {
+    switch (this.state.activeView) {
+      case 'cvars':
+        return this.renderCvars(cvarResults);
+      case 'schemaStack':
+        return this.renderSchemaStack(packs);
+      case 'report':
+      case 'diff':
+      case 'explain':
+        return this.renderResult(this.state.activeView);
+      case 'actions':
+        return this.renderActions();
+      default:
+        return this.renderOverview(packs, cvarResults);
+    }
+  }
+
+  private renderOverview(packs: LoadedSchemaPack[], cvarResults: ResolvedCvarEntry[]): string {
+    return `<section class="section">
+<h1>INI Tweak Lab Workbench</h1>
+<p class="muted">Schema inspection, CVar search, reports, and command shortcuts are available in this single panel.</p>
+<div class="grid">
+  <button class="button primary" data-view="cvars" type="button">Search active CVars</button>
+  <button class="button" data-view="schemaStack" type="button">Inspect schema stack</button>
+  <button class="button" data-workbench-command="generateReport" type="button">Generate current-file report</button>
+  <button class="button" data-workbench-command="explainSelection" type="button">Explain selected setting</button>
+</div>
+</section>
+${this.renderSchemaStack(packs, true)}
+${this.renderCvars(cvarResults.slice(0, 12), true)}`;
+  }
+
+  private renderSchemaStack(packs: LoadedSchemaPack[], compact = false): string {
+    const bundled = this.storage.bundledBaseSchemas();
+    const activeEngineVersion = packs.find((pack) => /^ue\d+\.\d+-base$/i.test(pack.pack.id))?.pack.target?.engineVersion;
+    const versionButtons = bundled
+      .map((schema) => {
+        const active = schema.engineVersion === activeEngineVersion;
+        return `<button class="button ${active ? 'primary' : ''}" data-engine-version="${escapeHtml(schema.engineVersion)}" type="button">UE ${escapeHtml(schema.engineVersion)}${active ? ' - active' : ''}</button>`;
+      })
+      .join('');
+    const rows = packs
+      .map(
+        (pack) =>
+          `<tr><td>${escapeHtml(pack.role)}</td><td>${escapeHtml(pack.pack.displayName)}</td><td>${Object.keys(pack.pack.cvars).length}</td><td><code>${escapeHtml(pack.path)}</code></td></tr>`
+      )
+      .join('');
+    return `<section class="section">
+<h2>${compact ? 'Schema stack' : 'Active schema stack'}</h2>
+<div class="grid">${versionButtons || '<div class="empty">No bundled Unreal Engine base schemas were found.</div>'}</div>
+${packs.length ? `<table><thead><tr><th>Role</th><th>Name</th><th>CVars</th><th>Path</th></tr></thead><tbody>${rows}</tbody></table>` : '<div class="empty">No schemas are loaded. Select a bundled Unreal Engine version or import a schema.</div>'}
+</section>`;
+  }
+
+  private renderCvars(cvarResults: ResolvedCvarEntry[], compact = false): string {
+    return `<section class="section">
+<h2>${compact ? 'CVar search' : 'Search active CVars'}</h2>
+<label class="search"><span class="eyebrow">Search</span><input data-cvar-search value="${escapeHtml(this.state.cvarQuery)}" placeholder="Name, help text, category, type, default, flag" /></label>
+<div class="results" data-cvar-results>${this.renderCvarResults(cvarResults)}</div>
+</section>`;
+  }
+
+  private renderCvarResults(cvarResults: ResolvedCvarEntry[]): string {
+    return cvarResults.length ? cvarResults.map((entry) => renderCvar(entry)).join('') : '<div class="empty">No matching CVars in the active schema.</div>';
+  }
+
+  private renderResult(view: WorkbenchResult['kind']): string {
+    const resultActions: Record<WorkbenchResult['kind'], string> = {
+      report: '<button class="button primary" data-workbench-command="generateReport" type="button">Generate report for active file</button>',
+      diff: '<button class="button primary" data-workbench-command="showDiff" type="button">Choose schema packs to diff</button>',
+      explain: '<button class="button primary" data-workbench-command="explainSelection" type="button">Explain selected INI setting</button>',
+      error: ''
+    };
+    const action = resultActions[view];
+    if (!this.state.result || this.state.result.kind !== view) {
+      return `<section class="empty"><h2>No ${view} yet</h2>${action}</section>`;
+    }
+    return `<section class="result">${action}<h1>${escapeHtml(this.state.result.title)}</h1><div class="markdown">${markdownToHtml(this.state.result.markdown)}</div></section>`;
+  }
+
+  private renderActions(): string {
+    const result = this.state.result?.kind === 'error' ? this.renderResult('error') : '';
+    return `${result}<section class="section"><h2>Commands</h2><div class="actions">
+<button class="button" data-run-command="iniTweakLab.validateCurrentFile" type="button">Validate current file</button>
+<button class="button" data-run-command="iniTweakLab.importCvarDump" type="button">Import CVar dump</button>
+<button class="button" data-run-command="iniTweakLab.importSchemaFile" type="button">Import schema file</button>
+<button class="button" data-run-command="iniTweakLab.createWorkspaceSchema" type="button">Create workspace schema</button>
+<button class="button" data-run-command="iniTweakLab.generateUnrealRendererBlock" type="button">Generate renderer block</button>
+<button class="button" data-run-command="iniTweakLab.sortCurrentSection" type="button">Sort current section</button>
+<button class="button" data-run-command="iniTweakLab.commentOutSelectedTweaks" type="button">Comment selected tweaks</button>
+</div></section>`;
+  }
+}
+
+function renderCvar(entry: ResolvedCvarEntry): string {
+  const meta = [
+    entry.entry.type,
+    entry.entry.defaultValue ? `default ${entry.entry.defaultValue}` : undefined,
+    entry.entry.currentValue ? `current ${entry.entry.currentValue}` : undefined,
+    entry.entry.category
+  ]
+    .filter(Boolean)
+    .join(' | ');
+  return `<article class="cvar"><header><div><code>${escapeHtml(entry.name)}</code><div class="meta">${escapeHtml(meta)}</div></div><button class="button" data-insert-cvar="${escapeHtml(entry.name)}" type="button">Insert</button></header>${entry.entry.help ? `<p>${escapeHtml(entry.entry.help)}</p>` : ''}</article>`;
+}
+
+function markdownToHtml(markdown: string): string {
+  const lines = markdown.split(/\r?\n/);
+  const html: string[] = [];
+  let inList = false;
+  const closeList = (): void => {
+    if (inList) {
+      html.push('</ul>');
+      inList = false;
+    }
+  };
+  for (const line of lines) {
+    if (line.startsWith('# ')) {
+      closeList();
+      html.push(`<h1>${inlineMarkdown(line.slice(2))}</h1>`);
+      continue;
+    }
+    if (line.startsWith('## ')) {
+      closeList();
+      html.push(`<h2>${inlineMarkdown(line.slice(3))}</h2>`);
+      continue;
+    }
+    if (line.startsWith('- ')) {
+      if (!inList) {
+        html.push('<ul>');
+        inList = true;
+      }
+      html.push(`<li>${inlineMarkdown(line.slice(2))}</li>`);
+      continue;
+    }
+    if (!line.trim()) {
+      closeList();
+      continue;
+    }
+    closeList();
+    html.push(`<p>${inlineMarkdown(line)}</p>`);
+  }
+  closeList();
+  return html.join('');
+}
+
+function inlineMarkdown(value: string): string {
+  return escapeHtml(value)
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
 }
 
 function escapeHtml(value: string): string {
   return value.replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char] ?? char);
-}
-
-function isSupportedWebviewMessage(message: unknown): message is WebviewMessage {
-  if (!message || typeof message !== 'object') return false;
-  const candidate = message as { command?: unknown; engineVersion?: unknown };
-  if (typeof candidate.command !== 'string') return false;
-  if (!SUPPORTED_WEBVIEW_COMMANDS.has(candidate.command)) return false;
-  return candidate.engineVersion === undefined || typeof candidate.engineVersion === 'string';
-}
-
-async function executeSupportedWebviewCommand(command: string): Promise<void> {
-  if (!SUPPORTED_WEBVIEW_COMMANDS.has(command)) {
-    throw new Error(`Attempted to execute unsupported command: ${command}`);
-  }
-  switch (command) {
-    case 'iniTweakLab.openSchemaStack':
-      await vscode.commands.executeCommand('iniTweakLab.openSchemaStack');
-      return;
-    case 'iniTweakLab.importCvarDump':
-      await vscode.commands.executeCommand('iniTweakLab.importCvarDump');
-      return;
-    case 'iniTweakLab.importSchemaFile':
-      await vscode.commands.executeCommand('iniTweakLab.importSchemaFile');
-      return;
-    case 'iniTweakLab.createWorkspaceSchema':
-      await vscode.commands.executeCommand('iniTweakLab.createWorkspaceSchema');
-      return;
-    case 'iniTweakLab.searchActiveCVars':
-      await vscode.commands.executeCommand('iniTweakLab.searchActiveCVars');
-      return;
-    case 'iniTweakLab.validateCurrentFile':
-      await vscode.commands.executeCommand('iniTweakLab.validateCurrentFile');
-      return;
-    case 'iniTweakLab.generateTweakReport':
-      await vscode.commands.executeCommand('iniTweakLab.generateTweakReport');
-      return;
-    case 'iniTweakLab.compareCurrentIniAgainstActiveSchema':
-      await vscode.commands.executeCommand('iniTweakLab.compareCurrentIniAgainstActiveSchema');
-      return;
-    case 'iniTweakLab.diffSchemaPacks':
-      await vscode.commands.executeCommand('iniTweakLab.diffSchemaPacks');
-      return;
-    case 'iniTweakLab.explainSelectedSetting':
-      await vscode.commands.executeCommand('iniTweakLab.explainSelectedSetting');
-      return;
-    case 'iniTweakLab.generateUnrealRendererBlock':
-      await vscode.commands.executeCommand('iniTweakLab.generateUnrealRendererBlock');
-      return;
-    case 'iniTweakLab.sortCurrentSection':
-      await vscode.commands.executeCommand('iniTweakLab.sortCurrentSection');
-      return;
-    case 'iniTweakLab.commentOutSelectedTweaks':
-      await vscode.commands.executeCommand('iniTweakLab.commentOutSelectedTweaks');
-      return;
-  }
 }
 
 function getNonce(): string {

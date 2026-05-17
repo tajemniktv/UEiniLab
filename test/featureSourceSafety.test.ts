@@ -1,20 +1,17 @@
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-
-const here = fileURLToPath(new URL('.', import.meta.url));
 
 describe('VS Code feature adapters performance safety', () => {
   it('writes folder-scoped schema stack updates to folder settings', async () => {
-    const source = await readFile(resolve(here, '../src/storage/workspaceConfig.ts'), 'utf8');
+    const source = await readFile(resolve(process.cwd(), 'src/storage/workspaceConfig.ts'), 'utf8');
 
     expect(source).toContain('ConfigurationTarget.WorkspaceFolder');
     expect(source).toContain('configurationTargetForScope');
   });
 
   it('debounces diagnostics updates and clears pending work on close/dispose', async () => {
-    const source = await readFile(resolve(here, '../src/features/diagnostics.ts'), 'utf8');
+    const source = await readFile(resolve(process.cwd(), 'src/features/diagnostics.ts'), 'utf8');
 
     expect(source).toContain('pendingUpdates');
     expect(source).toContain('setTimeout');
@@ -24,7 +21,7 @@ describe('VS Code feature adapters performance safety', () => {
   });
 
   it('checks cancellation and avoids full-document parsing before line-only completion contexts', async () => {
-    const source = await readFile(resolve(here, '../src/features/completion.ts'), 'utf8');
+    const source = await readFile(resolve(process.cwd(), 'src/features/completion.ts'), 'utf8');
 
     expect(source).toContain('token.isCancellationRequested');
     expect(source).toContain('getLineCompletionContext(fullLine, position.character)');
@@ -35,7 +32,7 @@ describe('VS Code feature adapters performance safety', () => {
   });
 
   it('does not build unused schema registry indexes', async () => {
-    const source = await readFile(resolve(here, '../src/core/schemaRegistry.ts'), 'utf8');
+    const source = await readFile(resolve(process.cwd(), 'src/core/schemaRegistry.ts'), 'utf8');
 
     expect(source).not.toContain('lowercaseNames');
     expect(source).not.toContain('tokenIndex');
@@ -44,7 +41,7 @@ describe('VS Code feature adapters performance safety', () => {
   });
 
   it('keeps schema file watchers out of long-lived extension disposables', async () => {
-    const source = await readFile(resolve(here, '../src/storage/schemaStorage.ts'), 'utf8');
+    const source = await readFile(resolve(process.cwd(), 'src/storage/schemaStorage.ts'), 'utf8');
 
     expect(source).toContain('schemaWatchDisposables');
     expect(source).toContain('disposeSchemaWatchers');
@@ -52,7 +49,7 @@ describe('VS Code feature adapters performance safety', () => {
   });
 
   it('debounces schema watcher reloads instead of reloading directly from each event', async () => {
-    const source = await readFile(resolve(here, '../src/storage/schemaStorage.ts'), 'utf8');
+    const source = await readFile(resolve(process.cwd(), 'src/storage/schemaStorage.ts'), 'utf8');
 
     expect(source).toContain('scheduleReload');
     expect(source).toContain('setTimeout');
@@ -64,7 +61,7 @@ describe('VS Code feature adapters performance safety', () => {
   });
 
   it('gates workspace-writing commands behind Workspace Trust', async () => {
-    const source = await readFile(resolve(here, '../src/commands/index.ts'), 'utf8');
+    const source = await readFile(resolve(process.cwd(), 'src/commands/index.ts'), 'utf8');
 
     expect(source).toContain('requireWorkspaceTrust');
     expect(source).toContain('vscode.workspace.isTrusted');
@@ -75,11 +72,37 @@ describe('VS Code feature adapters performance safety', () => {
     expect(source).toContain("'iniTweakLab.createWorkspaceSchema'");
   });
 
-  it('registers schema diff as a read-only command', async () => {
-    const source = await readFile(resolve(here, '../src/commands/index.ts'), 'utf8');
+  it('routes display-oriented commands through the unified Workbench', async () => {
+    const source = await readFile(resolve(process.cwd(), 'src/commands/index.ts'), 'utf8');
+
+    expect(source).toContain('workbench');
+    expect(source).toContain("workbench.focusWorkbench('schemaStack')");
+    expect(source).toContain("workbench.focusWorkbench('cvars')");
+    expect(source).toContain('generateReport(storage, workbench)');
+    expect(source).toContain('diffSchemaPacks(storage, workbench)');
+    expect(source).toContain('explainSelectedSetting(storage, workbench)');
+  });
+
+  it('keeps schema diff as a read-only command', async () => {
+    const source = await readFile(resolve(process.cwd(), 'src/commands/index.ts'), 'utf8');
 
     expect(source).toContain("'iniTweakLab.diffSchemaPacks'");
-    expect(source).toContain('diffSchemaPacks(storage)');
+    expect(source).toContain('diffSchemaPacks(storage, workbench)');
     expect(source).not.toContain("requireWorkspaceTrust('diff schema packs'");
+  });
+
+  it('does not use separate display panels for Workbench-owned views', async () => {
+    for (const relativePath of [
+      'src/commands/openSchemaStack.ts',
+      'src/commands/searchCvars.ts',
+      'src/commands/generateReport.ts',
+      'src/commands/diffSchemaPacks.ts',
+      'src/commands/explainSelectedSetting.ts'
+    ]) {
+      const source = await readFile(resolve(process.cwd(), relativePath), 'utf8');
+
+      expect(source, relativePath).not.toContain('createWebviewPanel');
+      expect(source, relativePath).not.toContain('showTextDocument');
+    }
   });
 });

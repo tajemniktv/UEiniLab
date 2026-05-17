@@ -1,10 +1,11 @@
 import * as vscode from 'vscode';
-import { getLineCompletionContext, type CompletionTextRange } from '../core/completionContext';
+import type { CompletionTextRange } from '../core/completionContext';
+import { getLineCompletionContext } from '../core/completionContext';
 import {
+  type CompletionCandidate,
   getKeyCompletions,
   getSectionCompletions,
-  getValueCompletions,
-  type CompletionCandidate
+  getValueCompletions
 } from '../core/completionEngine';
 import type { SchemaStorage } from '../storage/schemaStorage';
 import { getConfig } from '../storage/workspaceConfig';
@@ -78,8 +79,8 @@ export function registerCompletionProvider(context: vscode.ExtensionContext, sto
           );
           const cvarItems = cvarCandidates.map((candidate) => toCompletionItem(candidate, replacementRange));
           const snippets = [
-            snippet('SystemSettings block', '[SystemSettings]\n${1:r.DynamicGlobalIlluminationMethod}=1'),
-            snippet('Renderer settings block', '[/Script/Engine.RendererSettings]\n${1:r.ReflectionMethod}=1')
+            snippet('SystemSettings block', `[SystemSettings]\n\${1:r.DynamicGlobalIlluminationMethod}=1`),
+            snippet('Renderer settings block', `[/Script/Engine.RendererSettings]\n\${1:r.ReflectionMethod}=1`)
           ];
           return new vscode.CompletionList([...cvarItems, ...snippets], true);
         }

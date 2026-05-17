@@ -6,7 +6,7 @@ export function parseDumpConsoleCommandsText(text: string): Record<string, CvarE
   const cvars: Record<string, CvarEntry> = {};
   for (const line of text.split(/\r?\n/)) {
     const match = line.match(cvarLine);
-    if (!match || !match[1].includes('.')) continue;
+    if (!match?.[1]?.includes('.')) continue;
     const name = match[1].trim();
     const possibleValue = match[2]?.trim();
     const rest = match[3]?.trim() ?? '';

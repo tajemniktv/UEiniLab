@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import type { IniDiagnostics } from '../features/diagnostics';
 import type { SchemaStorage } from '../storage/schemaStorage';
+import type { WorkbenchController } from '../webview/uiViewProvider';
 import { commentOutSelectedTweaks } from './commentOutTweaks';
 import { createWorkspaceSchema } from './createWorkspaceSchema';
 import { diffSchemaPacks } from './diffSchemaPacks';
@@ -9,13 +10,16 @@ import { generateReport } from './generateReport';
 import { generateUnrealRendererBlock } from './generateUnrealRendererBlock';
 import { importCvarDump } from './importCvarDump';
 import { importSchemaFile } from './importSchema';
-import { openSchemaStack } from './openSchemaStack';
-import { searchActiveCvars } from './searchCvars';
 import { selectEngineVersion } from './selectEngineVersion';
 import { sortCurrentSection } from './sortCurrentSection';
 import { validateCurrentFile } from './validateCurrentFile';
 
-export function registerCommands(context: vscode.ExtensionContext, storage: SchemaStorage, diagnostics: IniDiagnostics): void {
+export function registerCommands(
+  context: vscode.ExtensionContext,
+  storage: SchemaStorage,
+  diagnostics: IniDiagnostics,
+  workbench: WorkbenchController
+): void {
   context.subscriptions.push(
     vscode.commands.registerCommand('iniTweakLab.importCvarDump', () =>
       requireWorkspaceTrust('import CVar dumps', () => importCvarDump(storage))
@@ -24,11 +28,11 @@ export function registerCommands(context: vscode.ExtensionContext, storage: Sche
       requireWorkspaceTrust('import schema files', () => importSchemaFile(storage))
     ),
     vscode.commands.registerCommand('iniTweakLab.validateCurrentFile', () => validateCurrentFile(diagnostics)),
-    vscode.commands.registerCommand('iniTweakLab.generateTweakReport', () => generateReport(storage)),
-    vscode.commands.registerCommand('iniTweakLab.explainSelectedSetting', () => explainSelectedSetting(storage)),
-    vscode.commands.registerCommand('iniTweakLab.compareCurrentIniAgainstActiveSchema', () => generateReport(storage)),
-    vscode.commands.registerCommand('iniTweakLab.diffSchemaPacks', () => diffSchemaPacks(storage)),
-    vscode.commands.registerCommand('iniTweakLab.openSchemaStack', () => openSchemaStack(storage)),
+    vscode.commands.registerCommand('iniTweakLab.generateTweakReport', () => generateReport(storage, workbench)),
+    vscode.commands.registerCommand('iniTweakLab.explainSelectedSetting', () => explainSelectedSetting(storage, workbench)),
+    vscode.commands.registerCommand('iniTweakLab.compareCurrentIniAgainstActiveSchema', () => generateReport(storage, workbench)),
+    vscode.commands.registerCommand('iniTweakLab.diffSchemaPacks', () => diffSchemaPacks(storage, workbench)),
+    vscode.commands.registerCommand('iniTweakLab.openSchemaStack', () => workbench.focusWorkbench('schemaStack')),
     vscode.commands.registerCommand('iniTweakLab.selectEngineVersion', (engineVersion?: string) =>
       requireWorkspaceTrust('update the active schema stack', () => selectEngineVersion(storage, engineVersion))
     ),
@@ -38,7 +42,7 @@ export function registerCommands(context: vscode.ExtensionContext, storage: Sche
     vscode.commands.registerCommand('iniTweakLab.generateUnrealRendererBlock', generateUnrealRendererBlock),
     vscode.commands.registerCommand('iniTweakLab.sortCurrentSection', sortCurrentSection),
     vscode.commands.registerCommand('iniTweakLab.commentOutSelectedTweaks', commentOutSelectedTweaks),
-    vscode.commands.registerCommand('iniTweakLab.searchActiveCVars', () => searchActiveCvars(storage))
+    vscode.commands.registerCommand('iniTweakLab.searchActiveCVars', () => workbench.focusWorkbench('cvars'))
   );
 }
 

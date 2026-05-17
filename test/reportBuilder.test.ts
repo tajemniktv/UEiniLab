@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { buildTweakReport } from '../src/core/reportBuilder';
 import { parseIni } from '../src/core/iniParser';
+import { buildTweakReport } from '../src/core/reportBuilder';
 import { SchemaRegistry } from '../src/core/schemaRegistry';
 
 describe('buildTweakReport', () => {

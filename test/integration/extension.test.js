@@ -26,6 +26,28 @@ suite('INI Tweak Lab extension host smoke tests', () => {
     }
   });
 
+  test('declares the Workbench as a webview view at runtime', async () => {
+    const extension = vscode.extensions.getExtension('TajemnikTV.tajs-ue-ini-lab');
+    assert.ok(extension, 'extension should be discoverable by publisher/name');
+
+    const views = extension.packageJSON.contributes?.views?.iniTweakLab ?? [];
+    const workbench = views.find((view) => view.id === 'iniTweakLab.panel');
+
+    assert.deepEqual(workbench, {
+      id: 'iniTweakLab.panel',
+      name: 'Workbench',
+      icon: 'resources/activity-icon.svg',
+      type: 'webview'
+    });
+  });
+
+  test('focuses the Workbench view without provider registration errors', async () => {
+    await vscode.commands.executeCommand('iniTweakLab.panel.focus');
+    await vscode.commands.executeCommand('iniTweakLab.openSchemaStack');
+
+    assert.equal(vscode.extensions.getExtension('TajemnikTV.tajs-ue-ini-lab').isActive, true);
+  });
+
   test('associates known Unreal filenames with ini-tweak', async () => {
     const folder = vscode.workspace.workspaceFolders?.[0];
     assert.ok(folder, 'fixture workspace should be open');

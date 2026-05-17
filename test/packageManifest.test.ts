@@ -1,3 +1,6 @@
+/// <reference types="node" />
+/// <reference types="vitest/globals" />
+
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -37,11 +40,9 @@ describe('extension package manifest', () => {
 
   it('contributes the Unreal Engine version selection command', async () => {
     const packageJson = JSON.parse(await readFile(resolve(process.cwd(), 'package.json'), 'utf8')) as {
-      activationEvents: string[];
       contributes: { commands: Array<{ command: string; title: string }> };
     };
 
-    expect(packageJson.activationEvents).toContain('onCommand:iniTweakLab.selectEngineVersion');
     expect(packageJson.contributes.commands).toContainEqual({
       command: 'iniTweakLab.selectEngineVersion',
       title: 'INI Tweak Lab: Select Unreal Engine Version'
@@ -53,7 +54,7 @@ describe('extension package manifest', () => {
       activationEvents: string[];
       contributes: {
         viewsContainers: { activitybar: Array<{ id: string; title: string; icon: string }> };
-        views: Record<string, Array<{ id: string; name: string }>>;
+        views: Record<string, Array<{ id: string; name: string; icon: string; type: string }>>;
       };
     };
 
@@ -64,9 +65,12 @@ describe('extension package manifest', () => {
     });
     expect(packageJson.contributes.views.iniTweakLab).toContainEqual({
       id: 'iniTweakLab.panel',
-      name: 'Workbench'
+      name: 'Workbench',
+      icon: 'resources/activity-icon.svg',
+      type: 'webview'
     });
     expect(packageJson.activationEvents).toContain('onView:iniTweakLab.panel');
+    expect(packageJson.activationEvents).toContain('onStartupFinished');
   });
 
   it('wires a small VS Code extension-host integration test suite', async () => {
@@ -82,11 +86,9 @@ describe('extension package manifest', () => {
 
   it('contributes the schema diff command', async () => {
     const packageJson = JSON.parse(await readFile(resolve(process.cwd(), 'package.json'), 'utf8')) as {
-      activationEvents: string[];
       contributes: { commands: Array<{ command: string; title: string }> };
     };
 
-    expect(packageJson.activationEvents).toContain('onCommand:iniTweakLab.diffSchemaPacks');
     expect(packageJson.contributes.commands).toContainEqual({
       command: 'iniTweakLab.diffSchemaPacks',
       title: 'INI Tweak Lab: Diff Schema Packs'
