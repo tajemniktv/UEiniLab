@@ -2,7 +2,7 @@
   "name": "tajs-ue-ini-lab",
   "displayName": "Taj's UE ini Lab",
   "description": "Schema-backed Unreal Engine and game INI editing, validation, documentation, comparison, and CVar research.",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "publisher": "TajemnikTV",
   "repository": {
     "url": "https://github.com/tajemniktv/UEiniLab",
