@@ -547,7 +547,7 @@ function toSafeMarkdownHref(href: string): string | undefined {
 }
 
 function decodeHtmlEntities(value: string): string {
-  return value.replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+  return value.replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
 }
 
 function escapeHtml(value: string): string {
