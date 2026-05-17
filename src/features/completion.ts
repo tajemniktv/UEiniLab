@@ -27,7 +27,7 @@ export function registerCompletionProvider(context: vscode.ExtensionContext, reg
           if (token.isCancellationRequested) return undefined;
           const fullLine = document.lineAt(position.line).text;
           const line = fullLine.slice(0, position.character);
-          const config = getConfig();
+          const config = getConfig(document.uri);
 
           if (/^\s*\[[^\]]*$/.test(line)) {
             return getSectionCompletions(config.defaultIniSections).map((candidate) => toCompletionItem(candidate));
@@ -35,15 +35,6 @@ export function registerCompletionProvider(context: vscode.ExtensionContext, reg
 
           const currentContext = getLineCompletionContext(fullLine, position.character);
           if (token.isCancellationRequested) return undefined;
-
-          if (line.includes('=')) {
-            const key = currentContext?.kind === 'value' ? currentContext.key : findKeyFromCurrentLine(line);
-            if (!key) return [];
-            return new vscode.CompletionList(
-              getValueCompletions(key, registry).map((candidate) => toCompletionItem(candidate)),
-              false
-            );
-          }
 
           if (!currentContext) {
             logCompletionDebug(debugChannel, config.debugCompletions, {
@@ -59,6 +50,15 @@ export function registerCompletionProvider(context: vscode.ExtensionContext, reg
               getValueCompletions(currentContext.key, registry).map((candidate) =>
                 toCompletionItem(candidate, toVsCodeRange(position.line, currentContext.replaceRange))
               ),
+              false
+            );
+          }
+
+          if (line.includes('=')) {
+            const key = findKeyFromCurrentLine(line);
+            if (!key) return [];
+            return new vscode.CompletionList(
+              getValueCompletions(key, registry).map((candidate) => toCompletionItem(candidate)),
               false
             );
           }

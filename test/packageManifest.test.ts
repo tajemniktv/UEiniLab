@@ -82,13 +82,18 @@ describe('extension package manifest', () => {
 
   it('keeps packaging focused on runtime extension assets', async () => {
     const ignore = await readFile(resolve(process.cwd(), '.vscodeignore'), 'utf8');
+    const rules = ignore
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0 && !line.startsWith('#'));
+    const excluded = rules.filter((line) => !line.startsWith('!'));
 
-    expect(ignore).toContain('src/**');
-    expect(ignore).toContain('test/**');
-    expect(ignore).toContain('SchemaSource/**');
-    expect(ignore).not.toContain('dist/**');
-    expect(ignore).not.toContain('schemas/**');
-    expect(ignore).not.toContain('resources/**');
+    expect(excluded).toContain('src/**');
+    expect(excluded).toContain('test/**');
+    expect(excluded).toContain('SchemaSource/**');
+    expect(excluded).not.toContain('dist/**');
+    expect(excluded).not.toContain('schemas/**');
+    expect(excluded).not.toContain('resources/**');
   });
 
   it('has a basic CI workflow for build, tests, lint, and package verification', async () => {
@@ -97,6 +102,7 @@ describe('extension package manifest', () => {
     expect(workflow).toContain('npm ci');
     expect(workflow).toContain('npm run compile');
     expect(workflow).toContain('npm test -- --run');
+    expect(workflow).toContain('npm run test:integration');
     expect(workflow).toContain('npm run lint');
     expect(workflow).toContain('npm run package:verify');
   });

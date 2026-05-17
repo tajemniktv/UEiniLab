@@ -39,7 +39,7 @@ export class IniDiagnostics implements vscode.Disposable {
   updateNow(document: vscode.TextDocument): void {
     this.clearPendingUpdate(document.uri);
     if (document.languageId !== 'ini-tweak') return;
-    const config = getConfig();
+    const config = getConfig(document.uri);
     if (!config.enableDiagnostics) {
       this.collection.delete(document.uri);
       return;

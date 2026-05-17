@@ -18,7 +18,8 @@ export default [
       globals: {
         console: 'readonly',
         process: 'readonly',
-        __dirname: 'readonly'
+        __dirname: 'readonly',
+        URL: 'readonly'
       }
     },
     plugins: {
@@ -26,6 +27,19 @@ export default [
     },
     rules: {
       ...tseslint.configs.recommended.rules
+    }
+  },
+  {
+    files: ['test/**/*.js'],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: 'commonjs',
+      globals: {
+        require: 'readonly',
+        suite: 'readonly',
+        test: 'readonly',
+        setTimeout: 'readonly'
+      }
     }
   }
 ];

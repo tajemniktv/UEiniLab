@@ -51,7 +51,7 @@ export function getConfig(scope?: vscode.ConfigurationScope): IniTweakLabConfig 
 export async function updateSchemaStack(schemaStack: string[], scope?: vscode.ConfigurationScope): Promise<void> {
   await vscode.workspace
     .getConfiguration('iniTweakLab', scope)
-    .update('schemaStack', schemaStack, vscode.ConfigurationTarget.Workspace);
+    .update('schemaStack', schemaStack, configurationTargetForScope(scope));
 }
 
 export function getSchemaStack(scope?: vscode.ConfigurationScope): string[] {
@@ -78,4 +78,16 @@ export function activeWorkspaceFolder(): vscode.WorkspaceFolder | undefined {
 
 export function activeConfigurationScope(): vscode.Uri | undefined {
   return activeWorkspaceFolder()?.uri ?? vscode.window.activeTextEditor?.document.uri;
+}
+
+function configurationTargetForScope(scope?: vscode.ConfigurationScope): vscode.ConfigurationTarget {
+  const scopeUri =
+    scope instanceof vscode.Uri
+      ? scope
+      : scope && 'uri' in scope
+        ? scope.uri
+        : undefined;
+  return scopeUri && vscode.workspace.getWorkspaceFolder(scopeUri)
+    ? vscode.ConfigurationTarget.WorkspaceFolder
+    : vscode.ConfigurationTarget.Workspace;
 }

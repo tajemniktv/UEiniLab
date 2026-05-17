@@ -6,12 +6,15 @@ describe('activity bar webview security', () => {
   it('renders with CSP, nonce-gated inline assets, and no local resource roots', async () => {
     const source = await readFile(resolve(process.cwd(), 'src/webview/uiViewProvider.ts'), 'utf8');
 
+    expect(source).toContain("from 'node:crypto'");
     expect(source).toContain("localResourceRoots: []");
     expect(source).toContain('Content-Security-Policy');
     expect(source).toContain("style-src 'nonce-");
     expect(source).toContain("script-src 'nonce-");
     expect(source).toContain('<style nonce="${nonce}">');
     expect(source).toContain('<script nonce="${nonce}">');
+    expect(source).toContain('randomBytes(16)');
+    expect(source).not.toContain('Math.random');
   });
 
   it('validates posted messages against an explicit command allowlist', async () => {
@@ -19,6 +22,8 @@ describe('activity bar webview security', () => {
 
     expect(source).toContain('SUPPORTED_WEBVIEW_COMMANDS');
     expect(source).toContain('isSupportedWebviewMessage');
+    expect(source).toContain('safeSerializeMessage');
+    expect(source).toContain('if (!SUPPORTED_WEBVIEW_COMMANDS.has(command))');
     expect(source).not.toContain('executeCommand(message.command)');
   });
 });

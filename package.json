@@ -333,7 +333,7 @@
     "test": "vitest",
     "test:run": "vitest --run",
     "test:integration": "vscode-test --config .vscode-test.mjs",
-    "lint": "eslint \"src/**/*.ts\" \"test/**/*.ts\"",
+    "lint": "eslint \"src/**/*.ts\" \"test/**/*.ts\" \"test/**/*.js\"",
     "check": "npm run compile && npm run test:run && npm run lint",
     "vscode:prepublish": "npm run package:extension",
     "package:extension": "npm run clean && npm run check-types && node esbuild.js --production",

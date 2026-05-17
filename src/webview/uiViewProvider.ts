@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import * as vscode from 'vscode';
 import type { SchemaStorage } from '../storage/schemaStorage';
 
@@ -33,7 +34,7 @@ export class IniTweakLabViewProvider implements vscode.WebviewViewProvider {
     disposables.push(
       webviewView.webview.onDidReceiveMessage((message: unknown) => {
         if (!isSupportedWebviewMessage(message)) {
-          this.storage.outputChannel().appendLine(`Ignored unsupported webview message: ${JSON.stringify(message)}`);
+          this.storage.outputChannel().appendLine(`Ignored unsupported webview message: ${safeSerializeMessage(message)}`);
           return;
         }
         if (message.command === 'iniTweakLab.selectEngineVersion') {
@@ -48,10 +49,6 @@ export class IniTweakLabViewProvider implements vscode.WebviewViewProvider {
       })
     );
     const refresh = (): void => {
-      if (webviewView.visible) {
-        webviewView.webview.html = this.render();
-        return;
-      }
       webviewView.webview.html = this.render();
     };
     refresh();
@@ -153,6 +150,9 @@ function isSupportedWebviewMessage(message: unknown): message is WebviewMessage 
 }
 
 async function executeSupportedWebviewCommand(command: string): Promise<void> {
+  if (!SUPPORTED_WEBVIEW_COMMANDS.has(command)) {
+    throw new Error(`Attempted to execute unsupported command: ${command}`);
+  }
   switch (command) {
     case 'iniTweakLab.openSchemaStack':
       await vscode.commands.executeCommand('iniTweakLab.openSchemaStack');
@@ -194,10 +194,13 @@ async function executeSupportedWebviewCommand(command: string): Promise<void> {
 }
 
 function getNonce(): string {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  let value = '';
-  for (let index = 0; index < 32; index++) {
-    value += chars.charAt(Math.floor(Math.random() * chars.length));
+  return randomBytes(16).toString('base64url');
+}
+
+function safeSerializeMessage(message: unknown): string {
+  try {
+    return JSON.stringify(message) ?? '<unserializable>';
+  } catch {
+    return '<unserializable>';
   }
-  return value;
 }
