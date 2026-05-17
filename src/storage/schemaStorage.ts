@@ -35,6 +35,9 @@ export class SchemaStorage implements vscode.Disposable {
         for (const folder of event.removed) {
           this.disposeScope(folder.uri);
         }
+        for (const folder of event.added) {
+          void this.reload(folder.uri);
+        }
       })
     );
   }
