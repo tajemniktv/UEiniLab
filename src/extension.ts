@@ -16,21 +16,32 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     vscode.window.registerWebviewViewProvider(IniTweakLabViewProvider.viewType, new IniTweakLabViewProvider(storage))
   );
 
-  const diagnostics = new IniDiagnostics(storage.registry);
+  const diagnostics = new IniDiagnostics(storage);
   diagnostics.register(context);
 
-  registerHoverProvider(context, storage.registry);
-  registerCompletionProvider(context, storage.registry);
-  registerInlayHintsProvider(context, storage.registry);
-  registerCodeActionsProvider(context, storage.registry);
+  registerHoverProvider(context, storage);
+  registerCompletionProvider(context, storage);
+  registerInlayHintsProvider(context, storage);
+  registerCodeActionsProvider(context, storage);
   registerDocumentSymbolsProvider(context);
   registerCommands(context, storage, diagnostics);
 
   context.subscriptions.push(
-    storage.onDidChange(() => {
-      for (const document of vscode.workspace.textDocuments) diagnostics.update(document);
+    storage.onDidChange((scope) => {
+      for (const document of vscode.workspace.textDocuments) {
+        if (!scope || vscode.workspace.getWorkspaceFolder(document.uri)?.uri.toString() === scope.toString()) {
+          diagnostics.update(document);
+        }
+      }
     }),
     vscode.workspace.onDidChangeConfiguration((event) => {
+      const folders = vscode.workspace.workspaceFolders;
+      if (folders?.length) {
+        for (const folder of folders) {
+          if (event.affectsConfiguration('iniTweakLab', folder.uri)) void storage.reload(folder.uri);
+        }
+        return;
+      }
       if (event.affectsConfiguration('iniTweakLab')) void storage.reload();
     })
   );

@@ -6,7 +6,7 @@ import {
   getValueCompletions,
   type CompletionCandidate
 } from '../core/completionEngine';
-import type { SchemaRegistry } from '../core/schemaRegistry';
+import type { SchemaStorage } from '../storage/schemaStorage';
 import { getConfig } from '../storage/workspaceConfig';
 
 const KEY_TRIGGER_CHARACTERS = [
@@ -16,7 +16,7 @@ const KEY_TRIGGER_CHARACTERS = [
   ...'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_'.split('')
 ];
 
-export function registerCompletionProvider(context: vscode.ExtensionContext, registry: SchemaRegistry): void {
+export function registerCompletionProvider(context: vscode.ExtensionContext, storage: SchemaStorage): void {
   const debugChannel = vscode.window.createOutputChannel('INI Tweak Lab Completions');
   context.subscriptions.push(debugChannel);
   context.subscriptions.push(
@@ -46,6 +46,7 @@ export function registerCompletionProvider(context: vscode.ExtensionContext, reg
           }
 
           if (currentContext.kind === 'value') {
+            const registry = storage.registryFor(document.uri);
             return new vscode.CompletionList(
               getValueCompletions(currentContext.key, registry).map((candidate) =>
                 toCompletionItem(candidate, toVsCodeRange(position.line, currentContext.replaceRange))
@@ -54,6 +55,7 @@ export function registerCompletionProvider(context: vscode.ExtensionContext, reg
             );
           }
 
+          const registry = storage.registryFor(document.uri);
           const cvarCandidates = getKeyCompletions(registry, currentContext.prefix, config.maxCompletionItems, {
             matchMode: config.completionMatchMode,
             fuzzyFallback:

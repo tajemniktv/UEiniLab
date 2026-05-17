@@ -1,5 +1,6 @@
 import type { IniDocument } from './iniAst';
 import { analyzeIniDocument, type DiagnosticOptions } from './diagnosticEngine';
+import { analyzeEffectiveIni } from './effectiveIniAnalysis';
 import type { SchemaRegistry } from './schemaRegistry';
 
 export function buildTweakReport(
@@ -8,6 +9,7 @@ export function buildTweakReport(
   options: DiagnosticOptions
 ): string {
   const diagnostics = analyzeIniDocument(document, registry, options);
+  const effective = analyzeEffectiveIni(document, registry, { preferredRole: 'game' });
   const known = document.keyValues.filter((node) => registry.lookup(node.key));
   const unknown = document.keyValues.filter((node) => !registry.lookup(node.key));
   const changed = known.filter((node) => {
@@ -29,6 +31,7 @@ export function buildTweakReport(
     `- Unknown keys/CVars: ${unknown.length}`,
     `- Diagnostics: ${diagnostics.length}`,
     `- Values differing from default/current: ${changed.length}`,
+    `- Effective settings: ${effective.entries.size}`,
     '',
     '## Diagnostic Summary'
   ];
@@ -61,6 +64,26 @@ export function buildTweakReport(
       lines.push(
         `- Line ${node.line + 1}: \`${node.key}=${node.value}\` (default: \`${entry?.defaultValue ?? 'unknown'}\`, dump: \`${entry?.currentValue ?? 'unknown'}\`)`
       );
+    }
+  }
+
+  lines.push('', '## Effective Values');
+  if (effective.entries.size === 0) {
+    lines.push('None.');
+  } else {
+    for (const entry of [...effective.entries.values()].slice(0, 200)) {
+      const value =
+        entry.finalArrayValue !== undefined
+          ? `[${entry.finalArrayValue.map((item) => `\`${item}\``).join(', ')}]`
+          : `\`${entry.finalValue ?? ''}\``;
+      const notes = [
+        entry.duplicates.length > 0 ? `${entry.duplicates.length} overridden duplicate(s)` : undefined,
+        entry.matchesDefault ? 'matches default' : undefined,
+        entry.matchesCurrent ? 'matches dump/current' : undefined
+      ]
+        .filter(Boolean)
+        .join('; ');
+      lines.push(`- \`${entry.key}\` => ${value}${notes ? ` (${notes})` : ''}`);
     }
   }
 

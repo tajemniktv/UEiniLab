@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import * as vscode from 'vscode';
 import type { SchemaStorage } from '../storage/schemaStorage';
+import { activeScopeUri } from '../commands/commandUtils';
 
 const SUPPORTED_WEBVIEW_COMMANDS: ReadonlySet<string> = new Set([
   'iniTweakLab.openSchemaStack',
@@ -11,6 +12,7 @@ const SUPPORTED_WEBVIEW_COMMANDS: ReadonlySet<string> = new Set([
   'iniTweakLab.validateCurrentFile',
   'iniTweakLab.generateTweakReport',
   'iniTweakLab.compareCurrentIniAgainstActiveSchema',
+  'iniTweakLab.diffSchemaPacks',
   'iniTweakLab.explainSelectedSetting',
   'iniTweakLab.generateUnrealRendererBlock',
   'iniTweakLab.sortCurrentSection',
@@ -53,6 +55,7 @@ export class IniTweakLabViewProvider implements vscode.WebviewViewProvider {
     };
     refresh();
     disposables.push(this.storage.onDidChange(refresh));
+    disposables.push(vscode.window.onDidChangeActiveTextEditor(refresh));
     disposables.push(
       webviewView.onDidDispose(() => {
         while (disposables.length > 0) {
@@ -64,9 +67,12 @@ export class IniTweakLabViewProvider implements vscode.WebviewViewProvider {
 
   private render(): string {
     const nonce = getNonce();
-    const packs = this.storage.registry.getPacks();
+    const scope = activeScopeUri();
+    const registry = this.storage.registryFor(scope);
+    const packs = registry.getPacks();
     const activeBase = packs.find((pack) => /^ue\d+\.\d+-base$/i.test(pack.pack.id));
-    const cvarCount = this.storage.registry.all().length;
+    const cvarCount = registry.all().length;
+    const activeScope = scope ? (vscode.workspace.getWorkspaceFolder(scope)?.name ?? scope.fsPath) : 'Workspace';
     const versions = this.storage
       .bundledBaseSchemas()
       .map((schema) => {
@@ -81,32 +87,40 @@ export class IniTweakLabViewProvider implements vscode.WebviewViewProvider {
           `<tr><td>${escapeHtml(pack.role)}</td><td>${escapeHtml(pack.pack.displayName)}</td><td>${Object.keys(pack.pack.cvars).length}</td></tr>`
       )
       .join('');
-    const actions = [
+    const quickActions = [
+      ['Search CVars', 'iniTweakLab.searchActiveCVars'],
+      ['Validate Current File', 'iniTweakLab.validateCurrentFile'],
+      ['Generate Report', 'iniTweakLab.generateTweakReport'],
+      ['Explain Setting', 'iniTweakLab.explainSelectedSetting']
+    ];
+    const schemaActions = [
       ['Open Schema Stack', 'iniTweakLab.openSchemaStack'],
       ['Import CVar Dump', 'iniTweakLab.importCvarDump'],
-      ['Import Schema File', 'iniTweakLab.importSchemaFile'],
-      ['Create Workspace Schema', 'iniTweakLab.createWorkspaceSchema'],
-      ['Search Active CVars', 'iniTweakLab.searchActiveCVars'],
-      ['Validate Current File', 'iniTweakLab.validateCurrentFile'],
-      ['Generate Tweak Report', 'iniTweakLab.generateTweakReport'],
-      ['Compare Current INI Against Active Schema', 'iniTweakLab.compareCurrentIniAgainstActiveSchema'],
-      ['Explain Selected Setting', 'iniTweakLab.explainSelectedSetting'],
-      ['Generate Unreal Renderer Block', 'iniTweakLab.generateUnrealRendererBlock'],
-      ['Sort Current Section', 'iniTweakLab.sortCurrentSection'],
-      ['Comment Out Selected Tweaks', 'iniTweakLab.commentOutSelectedTweaks']
+      ['Create Workspace Schema', 'iniTweakLab.createWorkspaceSchema']
     ];
-    const actionButtons = actions
+    const reportActions = [
+      ['Compare Current INI', 'iniTweakLab.compareCurrentIniAgainstActiveSchema'],
+      ['Diff Schema Packs', 'iniTweakLab.diffSchemaPacks'],
+      ['Generate Renderer Block', 'iniTweakLab.generateUnrealRendererBlock']
+    ];
+    const quickActionButtons = quickActions
       .map(
         ([label, command]) =>
           `<button data-command="${escapeHtml(command)}">${escapeHtml(label)}</button>`
       )
+      .join('');
+    const schemaActionButtons = schemaActions
+      .map(([label, command]) => `<button data-command="${escapeHtml(command)}">${escapeHtml(label)}</button>`)
+      .join('');
+    const reportActionButtons = reportActions
+      .map(([label, command]) => `<button data-command="${escapeHtml(command)}">${escapeHtml(label)}</button>`)
       .join('');
     return `<!doctype html>
 <html><head><meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'nonce-${nonce}'; script-src 'nonce-${nonce}';">
 <style nonce="${nonce}">
 body{font-family:var(--vscode-font-family);padding:12px;color:var(--vscode-foreground)}
-.stat{border:1px solid var(--vscode-panel-border);border-radius:6px;padding:8px;margin-bottom:10px}
+.stat{border:1px solid var(--vscode-panel-border);border-radius:6px;padding:8px;margin-bottom:8px}
 .stat strong{display:block;font-size:12px;color:var(--vscode-descriptionForeground);text-transform:uppercase;letter-spacing:.04em}
 .stat span{font-size:16px}.actions,.versions{display:flex;flex-direction:column;gap:6px}.versions{margin-bottom:12px}
 button{width:100%;text-align:left;border:0;border-radius:4px;padding:8px;background:var(--vscode-button-secondaryBackground);color:var(--vscode-button-secondaryForeground);cursor:pointer}
@@ -115,14 +129,23 @@ button:hover{background:var(--vscode-button-secondaryHoverBackground)}button.act
 table{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:12px}td,th{border:1px solid var(--vscode-panel-border);padding:4px;text-align:left;vertical-align:top}
 </style></head><body>
 <div class="stat"><strong>Base Schema</strong><span>${escapeHtml(activeBase?.pack.displayName ?? 'None selected')}</span></div>
+<div class="stat"><strong>Active Scope</strong><span>${escapeHtml(activeScope)}</span></div>
 <div class="stat"><strong>Active CVars</strong><span>${cvarCount}</span></div>
-<h2>Bundled Base</h2>
+<h2>Active Schema</h2>
 <div class="versions">${versions || '<div class="stat"><span>No bundled schemas found</span></div>'}</div>
-<h2>Active Stack</h2>
+<h2>Schema Stack</h2>
 ${stackRows ? `<table><thead><tr><th>Role</th><th>Name</th><th>CVars</th></tr></thead><tbody>${stackRows}</tbody></table>` : '<div class="stat"><span>No schemas loaded</span></div>'}
-<h2>Commands</h2>
+<h2>CVar Browser/Search</h2>
 <div class="actions">
-  ${actionButtons}
+  ${quickActionButtons}
+</div>
+<h2>Reports</h2>
+<div class="actions">
+  ${reportActionButtons}
+</div>
+<h2>Quick Actions</h2>
+<div class="actions">
+  ${schemaActionButtons}
 </div>
 <script nonce="${nonce}">
 const vscode = acquireVsCodeApi();
@@ -177,6 +200,9 @@ async function executeSupportedWebviewCommand(command: string): Promise<void> {
       return;
     case 'iniTweakLab.compareCurrentIniAgainstActiveSchema':
       await vscode.commands.executeCommand('iniTweakLab.compareCurrentIniAgainstActiveSchema');
+      return;
+    case 'iniTweakLab.diffSchemaPacks':
+      await vscode.commands.executeCommand('iniTweakLab.diffSchemaPacks');
       return;
     case 'iniTweakLab.explainSelectedSetting':
       await vscode.commands.executeCommand('iniTweakLab.explainSelectedSetting');

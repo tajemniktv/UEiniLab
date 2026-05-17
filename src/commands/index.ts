@@ -3,6 +3,7 @@ import type { IniDiagnostics } from '../features/diagnostics';
 import type { SchemaStorage } from '../storage/schemaStorage';
 import { commentOutSelectedTweaks } from './commentOutTweaks';
 import { createWorkspaceSchema } from './createWorkspaceSchema';
+import { diffSchemaPacks } from './diffSchemaPacks';
 import { explainSelectedSetting } from './explainSelectedSetting';
 import { generateReport } from './generateReport';
 import { generateUnrealRendererBlock } from './generateUnrealRendererBlock';
@@ -26,6 +27,7 @@ export function registerCommands(context: vscode.ExtensionContext, storage: Sche
     vscode.commands.registerCommand('iniTweakLab.generateTweakReport', () => generateReport(storage)),
     vscode.commands.registerCommand('iniTweakLab.explainSelectedSetting', () => explainSelectedSetting(storage)),
     vscode.commands.registerCommand('iniTweakLab.compareCurrentIniAgainstActiveSchema', () => generateReport(storage)),
+    vscode.commands.registerCommand('iniTweakLab.diffSchemaPacks', () => diffSchemaPacks(storage)),
     vscode.commands.registerCommand('iniTweakLab.openSchemaStack', () => openSchemaStack(storage)),
     vscode.commands.registerCommand('iniTweakLab.selectEngineVersion', (engineVersion?: string) =>
       requireWorkspaceTrust('update the active schema stack', () => selectEngineVersion(storage, engineVersion))

@@ -35,6 +35,7 @@
     "onCommand:iniTweakLab.generateTweakReport",
     "onCommand:iniTweakLab.explainSelectedSetting",
     "onCommand:iniTweakLab.compareCurrentIniAgainstActiveSchema",
+    "onCommand:iniTweakLab.diffSchemaPacks",
     "onCommand:iniTweakLab.openSchemaStack",
     "onCommand:iniTweakLab.selectEngineVersion",
     "onCommand:iniTweakLab.createWorkspaceSchema",
@@ -107,6 +108,10 @@
       {
         "command": "iniTweakLab.compareCurrentIniAgainstActiveSchema",
         "title": "INI Tweak Lab: Compare Current INI Against Active Schema"
+      },
+      {
+        "command": "iniTweakLab.diffSchemaPacks",
+        "title": "INI Tweak Lab: Diff Schema Packs"
       },
       {
         "command": "iniTweakLab.openSchemaStack",
@@ -188,6 +193,9 @@
         },
         {
           "command": "iniTweakLab.compareCurrentIniAgainstActiveSchema"
+        },
+        {
+          "command": "iniTweakLab.diffSchemaPacks"
         },
         {
           "command": "iniTweakLab.openSchemaStack"

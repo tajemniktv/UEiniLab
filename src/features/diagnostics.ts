@@ -2,7 +2,7 @@ import { clearTimeout, setTimeout } from 'node:timers';
 import * as vscode from 'vscode';
 import { analyzeIniDocument, type IniDiagnosticSeverity } from '../core/diagnosticEngine';
 import { parseIni } from '../core/iniParser';
-import type { SchemaRegistry } from '../core/schemaRegistry';
+import type { SchemaStorage } from '../storage/schemaStorage';
 import { getConfig } from '../storage/workspaceConfig';
 
 export class IniDiagnostics implements vscode.Disposable {
@@ -11,7 +11,7 @@ export class IniDiagnostics implements vscode.Disposable {
   private readonly disposables: vscode.Disposable[] = [this.collection];
   private readonly pendingUpdates = new Map<string, ReturnType<typeof setTimeout>>();
 
-  constructor(private readonly registry: SchemaRegistry) {}
+  constructor(private readonly storage: SchemaStorage) {}
 
   register(context: vscode.ExtensionContext): void {
     this.disposables.push(
@@ -47,7 +47,7 @@ export class IniDiagnostics implements vscode.Disposable {
     const parsed = parseIni(document.getText(), {
       enableInlineCommentParsing: config.enableInlineCommentParsing
     });
-    const diagnostics = analyzeIniDocument(parsed, this.registry, config).map((diagnostic) => {
+    const diagnostics = analyzeIniDocument(parsed, this.storage.registryFor(document.uri), config).map((diagnostic) => {
       const vscodeDiagnostic = new vscode.Diagnostic(
         rangeFromOffsets(document, diagnostic.startOffset, diagnostic.endOffset),
         diagnostic.message,

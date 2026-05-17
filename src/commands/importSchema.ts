@@ -21,7 +21,7 @@ export async function importSchemaFile(storage: SchemaStorage): Promise<void> {
       await fs.copyFile(source.fsPath, target);
       const relative = pathForSchemaStack(target, scope);
       await prependSchemaStackEntry(relative, scope);
-      await storage.reload();
+      await storage.reload(scope);
       void vscode.window.showInformationMessage(`Imported schema ${relative}.`);
     });
   });

@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import type { BundledBaseSchema } from '../storage/bundledSchemas';
 import type { SchemaStorage } from '../storage/schemaStorage';
+import { activeScopeUri } from '../commands/commandUtils';
 
 export function showSchemaStackPanel(storage: SchemaStorage): void {
   const panel = vscode.window.createWebviewPanel('iniTweakLabSchemaStack', 'INI Tweak Lab Schema Stack', vscode.ViewColumn.Beside, {
@@ -16,10 +17,11 @@ export function showSchemaStackPanel(storage: SchemaStorage): void {
 }
 
 function renderHtml(storage: SchemaStorage): string {
+  const scope = activeScopeUri();
   const bundled: BundledBaseSchema[] = storage.bundledBaseSchemas();
   const bundledPaths = new Map(bundled.map((schema) => [schema.absolutePath.toLowerCase(), schema.relativePath]));
   const packs = storage
-    .registry
+    .registryFor(scope)
     .getPacks()
     .sort((a, b) => b.priority - a.priority);
   const rows = packs
@@ -32,6 +34,7 @@ function renderHtml(storage: SchemaStorage): string {
     .join('');
 
   const activeEngineVersion = packs.find((pack) => /^ue\d+\.\d+-base$/i.test(pack.pack.id))?.pack.target?.engineVersion;
+  const activeScope = scope ? (vscode.workspace.getWorkspaceFolder(scope)?.name ?? scope.fsPath) : 'Workspace';
   const versionCards = bundled
     .map((schema) => {
       const active = schema.engineVersion === activeEngineVersion;
@@ -53,6 +56,7 @@ p{color:var(--vscode-descriptionForeground);max-width:760px}.versions{display:gr
 code{font-family:var(--vscode-editor-font-family)}
 </style></head><body>
 <h1>Schema Stack</h1>
+<p><strong>Active scope:</strong> ${escapeHtml(activeScope)}</p>
 <p>Choose the bundled Unreal Engine base schema for engine-level CVar documentation, then layer game dumps and workspace overrides above it. Higher priority schemas override sparse fields from lower layers while preserving provenance.</p>
 <h2>Bundled Unreal Engine Versions</h2>
 <div class="versions">${versionCards || '<p>No bundled base schemas found.</p>'}</div>

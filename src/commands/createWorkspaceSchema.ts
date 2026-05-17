@@ -30,7 +30,7 @@ export async function createWorkspaceSchema(storage: SchemaStorage): Promise<voi
       }
       const relative = pathForSchemaStack(target, scope);
       await prependSchemaStackEntry(relative, scope);
-      await storage.reload();
+      await storage.reload(scope);
       const document = await vscode.workspace.openTextDocument(target);
       await vscode.window.showTextDocument(document);
     });
