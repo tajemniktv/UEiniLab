@@ -26,7 +26,7 @@ export function parseSchemaText(text: string): SchemaValidationResult {
     return { ok: false, errors: result.error.issues.map((issue) => issue.message) };
   }
 
-  return { ok: true, pack: normalizePack(result.data), errors: [] };
+  return { ok: true, pack: normalizePack(result.data as CvarSchemaPack), errors: [] };
 }
 
 export function normalizePack(pack: CvarSchemaPack): CvarSchemaPack {
