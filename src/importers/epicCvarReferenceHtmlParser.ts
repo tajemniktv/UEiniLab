@@ -101,7 +101,7 @@ function stripHtmlTagsFully(value: string): string {
   const maxIterations = 1000;
   do {
     previous = current;
-    current = current.replace(/<[^>]+>/g, '');
+    current = current.replace(/<[^>]*>/g, '');
     iterations++;
     if (iterations >= maxIterations) {
       break;
