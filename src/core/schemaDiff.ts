@@ -161,15 +161,17 @@ function normalizedEntries(pack: CvarSchemaPack): Map<string, CvarEntry> {
 function changedFields(before: CvarEntry, after: CvarEntry): SchemaFieldChange[] {
   return comparedFields
     .map((field) => {
-      const beforeValue = normalizedValue(before[field]);
-      const afterValue = normalizedValue(after[field]);
+      const beforeValue = normalizedValue(before[field as keyof CvarEntry]);
+      const afterValue = normalizedValue(after[field as keyof CvarEntry]);
       return valuesEqual(beforeValue, afterValue) ? undefined : { field, before: beforeValue, after: afterValue };
     })
     .filter((change): change is SchemaFieldChange => Boolean(change));
 }
 
 function normalizedValue(value: unknown): unknown {
-  if (Array.isArray(value)) return [...value].sort();
+  if (Array.isArray(value)) {
+    return value.map((item) => normalizedValue(item)).sort((a, b) => stableStringify(a).localeCompare(stableStringify(b)));
+  }
   if (value && typeof value === 'object') {
     return Object.fromEntries(
       Object.entries(value as Record<string, unknown>)
@@ -181,7 +183,11 @@ function normalizedValue(value: unknown): unknown {
 }
 
 function valuesEqual(a: unknown, b: unknown): boolean {
-  return JSON.stringify(a) === JSON.stringify(b);
+  return stableStringify(a) === stableStringify(b);
+}
+
+function stableStringify(value: unknown): string {
+  return JSON.stringify(value);
 }
 
 function summarizePack(pack: CvarSchemaPack): SchemaDiffPackSummary {

@@ -32,7 +32,7 @@ describe('analyzeEffectiveIni', () => {
       preferredRole: 'game'
     });
 
-    const known = result.entries.get('SystemSettings/r.Known');
+    const known = [...result.entries.values()].find((entry) => entry.key === 'r.Known');
     expect(known?.finalValue).toBe('3');
     expect(known?.winningOccurrence.line).toBe(2);
     expect(known?.duplicates.map((node) => node.line)).toEqual([1]);
@@ -45,9 +45,23 @@ describe('analyzeEffectiveIni', () => {
   it('interprets basic Unreal array mutation operators', () => {
     const result = analyzeEffectiveIni(parseIni('[SystemSettings]\n+r.Array=A\n+r.Array=B\n-r.Array=A\n!r.Array='), registry());
 
-    const array = result.entries.get('SystemSettings/r.Array');
+    const array = [...result.entries.values()].find((entry) => entry.key === 'r.Array');
     expect(array?.finalArrayValue).toEqual([]);
     expect(array?.arrayOperations.map((operation) => operation.operator)).toEqual(['+', '+', '-', '!']);
     expect(array?.winningOccurrence.line).toBe(4);
+  });
+
+  it('groups section and key names case-insensitively without ambiguous slash keys', () => {
+    const result = analyzeEffectiveIni(
+      parseIni('[System/Settings]\nr.Known=1\n[system/settings]\nr.known=3\n[System]\nSettings/r.Known=9'),
+      registry()
+    );
+    const entries = [...result.entries.values()];
+
+    const known = entries.find((entry) => entry.key === 'r.known');
+    expect(known?.occurrences).toHaveLength(2);
+    expect(known?.finalValue).toBe('3');
+    expect(entries.find((entry) => entry.key === 'Settings/r.Known')?.finalValue).toBe('9');
+    expect(result.entries.size).toBe(2);
   });
 });

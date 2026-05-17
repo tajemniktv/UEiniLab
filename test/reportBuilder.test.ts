@@ -31,8 +31,23 @@ describe('buildTweakReport', () => {
     });
 
     expect(report).toContain('## Effective Values');
-    expect(report).toContain('`r.Known` => `2`');
+    expect(report).toContain('`SystemSettings/r.Known` => `2`');
     expect(report).toContain('1 overridden duplicate(s)');
     expect(report).toContain('matches dump/current');
+  });
+
+  it('includes section context for effective values with the same key in multiple sections', () => {
+    const registry = new SchemaRegistry();
+    registry.setPacks([]);
+
+    const report = buildTweakReport(parseIni('[A]\nr.Shared=1\n[B]\nr.Shared=2'), registry, {
+      warnDuplicateKeys: true,
+      warnKnownInEngineButMissingFromGameDump: true,
+      warnTypeMismatches: true,
+      warnUnknownCvars: true
+    });
+
+    expect(report).toContain('`A/r.Shared` => `1`');
+    expect(report).toContain('`B/r.Shared` => `2`');
   });
 });

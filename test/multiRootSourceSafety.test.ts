@@ -20,6 +20,15 @@ describe('multi-root schema routing source contracts', () => {
     expect(storage).not.toContain('readonly registry = new SchemaRegistry()');
   });
 
+  it('cleans removed workspace folder state and keeps single-file reload scoped to the active document', async () => {
+    const storage = await source('src/storage/schemaStorage.ts');
+
+    expect(storage).toContain('onDidChangeWorkspaceFolders');
+    expect(storage).toContain('disposeScope(folder.uri)');
+    expect(storage).toContain('scope = activeConfigurationScope()');
+    expect(storage).toContain('if (!scope) {');
+  });
+
   it('language providers resolve the registry from each document URI', async () => {
     const files = [
       'src/features/hover.ts',
@@ -41,7 +50,6 @@ describe('multi-root schema routing source contracts', () => {
       'src/commands/explainSelectedSetting.ts',
       'src/commands/searchCvars.ts',
       'src/webview/uiViewProvider.ts',
-      'src/webview/schemaStackPanel.ts',
       'src/webview/cvarBrowserPanel.ts'
     ];
 
@@ -50,6 +58,15 @@ describe('multi-root schema routing source contracts', () => {
       expect(text, file).toContain('activeScopeUri');
       expect(text, file).toContain('registryFor(');
     }
+  });
+
+  it('schema stack panel captures its opening scope instead of recomputing focus-sensitive active scope', async () => {
+    const panel = await source('src/webview/schemaStackPanel.ts');
+
+    expect(panel).toContain('const scope = activeScopeUri();');
+    expect(panel).toContain('renderHtml(storage, scope)');
+    expect(panel).toContain('selectEngineVersionForScope(storage, scope, message.engineVersion)');
+    expect(panel).not.toContain('function renderHtml(storage: SchemaStorage): string');
   });
 
   it('configuration changes reload only affected workspace folders where possible', async () => {

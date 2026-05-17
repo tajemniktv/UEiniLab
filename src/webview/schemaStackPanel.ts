@@ -1,23 +1,25 @@
 import * as vscode from 'vscode';
+import { activeScopeUri } from '../commands/commandUtils';
+import { isBundledBaseSchemaPath } from '../storage/bundledSchemas';
 import type { BundledBaseSchema } from '../storage/bundledSchemas';
 import type { SchemaStorage } from '../storage/schemaStorage';
-import { activeScopeUri } from '../commands/commandUtils';
+import { getSchemaStack, updateSchemaStack } from '../storage/workspaceConfig';
 
 export function showSchemaStackPanel(storage: SchemaStorage): void {
+  const scope = activeScopeUri();
   const panel = vscode.window.createWebviewPanel('iniTweakLabSchemaStack', 'INI Tweak Lab Schema Stack', vscode.ViewColumn.Beside, {
     enableScripts: true
   });
   panel.webview.onDidReceiveMessage(async (message: { command?: string; engineVersion?: string }) => {
     if (message.command === 'selectEngineVersion' && message.engineVersion) {
-      await vscode.commands.executeCommand('iniTweakLab.selectEngineVersion', message.engineVersion);
-      panel.webview.html = renderHtml(storage);
+      await selectEngineVersionForScope(storage, scope, message.engineVersion);
+      panel.webview.html = renderHtml(storage, scope);
     }
   });
-  panel.webview.html = renderHtml(storage);
+  panel.webview.html = renderHtml(storage, scope);
 }
 
-function renderHtml(storage: SchemaStorage): string {
-  const scope = activeScopeUri();
+function renderHtml(storage: SchemaStorage, scope: vscode.Uri | undefined): string {
   const bundled: BundledBaseSchema[] = storage.bundledBaseSchemas();
   const bundledPaths = new Map(bundled.map((schema) => [schema.absolutePath.toLowerCase(), schema.relativePath]));
   const packs = storage
@@ -71,6 +73,23 @@ document.querySelectorAll('[data-engine-version]').forEach((button) => {
 });
 </script>
 </body></html>`;
+}
+
+async function selectEngineVersionForScope(
+  storage: SchemaStorage,
+  scope: vscode.Uri | undefined,
+  engineVersion: string
+): Promise<void> {
+  if (!vscode.workspace.isTrusted) {
+    void vscode.window.showWarningMessage('Trust this workspace to update the active schema stack.');
+    return;
+  }
+  const selected = storage.bundledBaseSchemas().find((schema) => schema.engineVersion === engineVersion);
+  if (!selected) return;
+  const currentStack = getSchemaStack(scope);
+  const withoutBundledBase = currentStack.filter((item) => !isBundledBaseSchemaPath(item));
+  await updateSchemaStack([...withoutBundledBase, selected.relativePath], scope);
+  await storage.reload(scope);
 }
 
 function escapeHtml(value: string): string {

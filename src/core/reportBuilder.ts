@@ -83,7 +83,8 @@ export function buildTweakReport(
       ]
         .filter(Boolean)
         .join('; ');
-      lines.push(`- \`${entry.key}\` => ${value}${notes ? ` (${notes})` : ''}`);
+      const scopedKey = entry.section ? `${entry.section}/${entry.key}` : entry.key;
+      lines.push(`- \`${scopedKey}\` => ${value}${notes ? ` (${notes})` : ''}`);
     }
   }
 

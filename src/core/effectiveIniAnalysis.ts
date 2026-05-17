@@ -82,7 +82,7 @@ export function analyzeEffectiveIni(
 }
 
 function entryKey(section: string | null, key: string): string {
-  return `${section ?? '<root>'}/${key}`;
+  return `${section?.toLowerCase() ?? '<root>'}\u0000${key.toLowerCase()}`;
 }
 
 function applyArrayOperations(occurrences: IniKeyValueNode[]): string[] {

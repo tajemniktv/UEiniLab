@@ -30,6 +30,13 @@ export class SchemaStorage implements vscode.Disposable {
   constructor(private readonly context: vscode.ExtensionContext) {
     this.output = vscode.window.createOutputChannel('INI Tweak Lab');
     this.disposables.push(this.output);
+    this.disposables.push(
+      vscode.workspace.onDidChangeWorkspaceFolders((event) => {
+        for (const folder of event.removed) {
+          this.disposeScope(folder.uri);
+        }
+      })
+    );
   }
 
   get registry(): SchemaRegistry {
@@ -48,6 +55,7 @@ export class SchemaStorage implements vscode.Disposable {
         await Promise.all(folders.map((folder) => this.reload(folder.uri)));
         return;
       }
+      scope = activeConfigurationScope();
     }
     const state = this.stateFor(scope);
     const reload = state.reloadQueue.then(() => (this.disposed ? undefined : this.doReload(scope)));
@@ -121,10 +129,8 @@ export class SchemaStorage implements vscode.Disposable {
 
   dispose(): void {
     this.disposed = true;
-    for (const key of this.scopes.keys()) {
-      const state = this.scopes.get(key);
-      if (state?.reloadTimer) globalThis.clearTimeout(state.reloadTimer);
-      this.disposeSchemaWatchers(key);
+    for (const key of [...this.scopes.keys()]) {
+      this.disposeScopeByKey(key);
     }
     for (const disposable of this.disposables) disposable.dispose();
     this.onDidChangeEmitter.dispose();
@@ -168,9 +174,22 @@ export class SchemaStorage implements vscode.Disposable {
   }
 
   private disposeSchemaWatchers(key: string): void {
-    const state = this.stateForKey(key);
+    const state = this.scopes.get(key);
+    if (!state) return;
     for (const disposable of state.schemaWatchDisposables) disposable.dispose();
     state.schemaWatchDisposables = [];
+  }
+
+  private disposeScope(scope: vscode.Uri): void {
+    this.disposeScopeByKey(scopeKey(scope));
+  }
+
+  private disposeScopeByKey(key: string): void {
+    const state = this.scopes.get(key);
+    if (!state) return;
+    if (state.reloadTimer) globalThis.clearTimeout(state.reloadTimer);
+    this.disposeSchemaWatchers(key);
+    this.scopes.delete(key);
   }
 
   private stateForKey(key: string): RegistryScopeState {

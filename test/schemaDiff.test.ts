@@ -63,4 +63,39 @@ describe('diffSchemaPacks', () => {
     expect(markdown).toContain('`r.Changed`');
     expect(markdown).toContain('defaultValue');
   });
+
+  it('does not report order-only changes for arrays of objects', () => {
+    const left: CvarSchemaPack = {
+      schemaVersion: 1,
+      id: 'left',
+      displayName: 'Left',
+      cvars: {
+        'r.SourceOrder': {
+          name: 'r.SourceOrder',
+          type: 'int',
+          sources: [
+            { type: 'engine-docs', label: 'Docs' },
+            { type: 'engine-dump', label: 'Dump' }
+          ]
+        }
+      }
+    };
+    const right: CvarSchemaPack = {
+      schemaVersion: 1,
+      id: 'right',
+      displayName: 'Right',
+      cvars: {
+        'r.SourceOrder': {
+          name: 'r.SourceOrder',
+          type: 'int',
+          sources: [
+            { type: 'engine-dump', label: 'Dump' },
+            { type: 'engine-docs', label: 'Docs' }
+          ]
+        }
+      }
+    };
+
+    expect(diffSchemaPacks(left, right).summary).toEqual({ added: 0, removed: 0, changed: 0, unchanged: 1 });
+  });
 });
