@@ -12,6 +12,9 @@ describe('Workbench webview messages', () => {
     expect(isSupportedWorkbenchMessage({ command: 'workbench.action.closeWindow' })).toBe(false);
     expect(isSupportedWorkbenchMessage({ command: 'setView', view: 'unknown' })).toBe(false);
     expect(isSupportedWorkbenchMessage({ command: 'selectEngineVersion', engineVersion: 57 })).toBe(false);
+    expect(isSupportedWorkbenchMessage({ command: 'searchCvars', query: 'x'.repeat(1001) })).toBe(false);
+    expect(isSupportedWorkbenchMessage({ command: 'insertCvar', name: 'r.Bad${1}' })).toBe(false);
+    expect(isSupportedWorkbenchMessage({ command: 'insertCvar', name: `r.${'x'.repeat(501)}` })).toBe(false);
     expect(isSupportedWorkbenchMessage(null)).toBe(false);
   });
 });

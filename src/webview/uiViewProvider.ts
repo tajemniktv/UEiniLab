@@ -26,6 +26,14 @@ interface WorkbenchState {
   result?: WorkbenchResult;
 }
 
+interface WorkbenchCvarResult {
+  name: string;
+  meta: string;
+  help?: string;
+}
+
+const MAX_CVAR_SEARCH_QUERY_LENGTH = 1000;
+
 export class IniTweakLabViewProvider implements vscode.WebviewViewProvider, WorkbenchController {
   static readonly viewType = 'iniTweakLab.panel';
 
@@ -49,7 +57,10 @@ export class IniTweakLabViewProvider implements vscode.WebviewViewProvider, Work
           this.storage.outputChannel().appendLine(`Ignored unsupported Workbench message: ${safeSerializeMessage(message)}`);
           return;
         }
-        void this.handleMessage(message);
+        this.handleMessage(message).catch((error: unknown) => {
+          const detail = error instanceof Error ? error.message : String(error);
+          this.storage.outputChannel().appendLine(`Error handling Workbench message ${safeSerializeMessage(message)}: ${detail}`);
+        });
       })
     );
     const refresh = (): void => this.refreshWorkbench();
@@ -89,7 +100,7 @@ export class IniTweakLabViewProvider implements vscode.WebviewViewProvider, Work
     const cvarResults = this.storage.registryFor(activeScopeUri()).search(this.state.cvarQuery, 100);
     void this.webviewView.webview.postMessage({
       command: 'replaceCvarResults',
-      html: this.renderCvarResults(cvarResults)
+      results: cvarResults.map(toWorkbenchCvarResult)
     });
   }
 
@@ -103,7 +114,7 @@ export class IniTweakLabViewProvider implements vscode.WebviewViewProvider, Work
         await this.selectEngineVersion(message.engineVersion);
         return;
       case 'searchCvars':
-        this.state.cvarQuery = message.query ?? '';
+        this.state.cvarQuery = (message.query ?? '').slice(0, MAX_CVAR_SEARCH_QUERY_LENGTH);
         this.state.activeView = 'cvars';
         this.postCvarResults();
         return;
@@ -159,7 +170,14 @@ export class IniTweakLabViewProvider implements vscode.WebviewViewProvider, Work
       return;
     }
     const entry = this.storage.registryFor(activeScopeUri() ?? editor.document.uri).lookup(name);
-    await editor.insertSnippet(new vscode.SnippetString(`${name}=${entry?.entry.defaultValue ?? '$1'}`));
+    const snippet = new vscode.SnippetString();
+    snippet.appendText(`${name}=`);
+    if (entry?.entry.defaultValue !== undefined) {
+      snippet.appendText(entry.entry.defaultValue);
+    } else {
+      snippet.appendTabstop(1);
+    }
+    await editor.insertSnippet(snippet);
   }
 
   private render(): string {
@@ -236,7 +254,39 @@ if (search) {
 window.addEventListener('message', (event) => {
   if (event.data?.command !== 'replaceCvarResults') return;
   const results = document.querySelector('[data-cvar-results]');
-  if (results) results.innerHTML = event.data.html;
+  if (!results || !Array.isArray(event.data.results)) return;
+  if (event.data.results.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'empty';
+    empty.textContent = 'No matching CVars in the active schema.';
+    results.replaceChildren(empty);
+    return;
+  }
+  results.replaceChildren(...event.data.results.map((entry) => {
+    const article = document.createElement('article');
+    article.className = 'cvar';
+    const header = document.createElement('header');
+    const body = document.createElement('div');
+    const name = document.createElement('code');
+    name.textContent = entry.name;
+    const meta = document.createElement('div');
+    meta.className = 'meta';
+    meta.textContent = entry.meta || '';
+    body.append(name, meta);
+    const insert = document.createElement('button');
+    insert.className = 'button';
+    insert.dataset.insertCvar = entry.name;
+    insert.type = 'button';
+    insert.textContent = 'Insert';
+    header.append(body, insert);
+    article.append(header);
+    if (entry.help) {
+      const help = document.createElement('p');
+      help.textContent = entry.help;
+      article.append(help);
+    }
+    return article;
+  }));
 });
 </script>
 </body></html>`;
@@ -363,55 +413,100 @@ ${packs.length ? `<table><thead><tr><th>Role</th><th>Name</th><th>CVars</th><th>
 }
 
 function renderCvar(entry: ResolvedCvarEntry): string {
-  const meta = [
-    entry.entry.type,
-    entry.entry.defaultValue ? `default ${entry.entry.defaultValue}` : undefined,
-    entry.entry.currentValue ? `current ${entry.entry.currentValue}` : undefined,
-    entry.entry.category
-  ]
-    .filter(Boolean)
-    .join(' | ');
-  return `<article class="cvar"><header><div><code>${escapeHtml(entry.name)}</code><div class="meta">${escapeHtml(meta)}</div></div><button class="button" data-insert-cvar="${escapeHtml(entry.name)}" type="button">Insert</button></header>${entry.entry.help ? `<p>${escapeHtml(entry.entry.help)}</p>` : ''}</article>`;
+  const result = toWorkbenchCvarResult(entry);
+  return `<article class="cvar"><header><div><code>${escapeHtml(result.name)}</code><div class="meta">${escapeHtml(result.meta)}</div></div><button class="button" data-insert-cvar="${escapeHtml(result.name)}" type="button">Insert</button></header>${result.help ? `<p>${escapeHtml(result.help)}</p>` : ''}</article>`;
+}
+
+function toWorkbenchCvarResult(entry: ResolvedCvarEntry): WorkbenchCvarResult {
+  return {
+    name: entry.name,
+    meta: [
+      entry.entry.type,
+      entry.entry.defaultValue ? `default ${entry.entry.defaultValue}` : undefined,
+      entry.entry.currentValue ? `current ${entry.entry.currentValue}` : undefined,
+      entry.entry.category
+    ]
+      .filter(Boolean)
+      .join(' | '),
+    help: entry.entry.help
+  };
 }
 
 function markdownToHtml(markdown: string): string {
   const lines = markdown.split(/\r?\n/);
   const html: string[] = [];
   let inList = false;
+  let inTable = false;
   const closeList = (): void => {
     if (inList) {
       html.push('</ul>');
       inList = false;
     }
   };
+  const closeTable = (): void => {
+    if (inTable) {
+      html.push('</tbody></table>');
+      inTable = false;
+    }
+  };
   for (const line of lines) {
     if (line.startsWith('# ')) {
       closeList();
+      closeTable();
       html.push(`<h1>${inlineMarkdown(line.slice(2))}</h1>`);
       continue;
     }
     if (line.startsWith('## ')) {
       closeList();
+      closeTable();
       html.push(`<h2>${inlineMarkdown(line.slice(3))}</h2>`);
       continue;
     }
-    if (line.startsWith('- ')) {
+    if (line.startsWith('### ')) {
+      closeList();
+      closeTable();
+      html.push(`<h3>${inlineMarkdown(line.slice(4))}</h3>`);
+      continue;
+    }
+    if (/^\s*\|/.test(line)) {
+      closeList();
+      const cells = parseTableCells(line);
+      if (cells.length === 0 || cells.every((cell) => /^:?-{3,}:?$/.test(cell.trim()))) continue;
+      if (!inTable) {
+        html.push('<table><tbody>');
+        inTable = true;
+      }
+      html.push(`<tr>${cells.map((cell) => `<td>${inlineMarkdown(cell.trim())}</td>`).join('')}</tr>`);
+      continue;
+    }
+    const listItem = line.match(/^\s*-\s+(.+)$/);
+    if (listItem) {
+      closeTable();
       if (!inList) {
         html.push('<ul>');
         inList = true;
       }
-      html.push(`<li>${inlineMarkdown(line.slice(2))}</li>`);
+      html.push(`<li>${inlineMarkdown(listItem[1])}</li>`);
       continue;
     }
     if (!line.trim()) {
       closeList();
+      closeTable();
       continue;
     }
     closeList();
+    closeTable();
     html.push(`<p>${inlineMarkdown(line)}</p>`);
   }
   closeList();
+  closeTable();
   return html.join('');
+}
+
+function parseTableCells(line: string): string[] {
+  const trimmed = line.trim();
+  const withoutOuterPipes = trimmed.replace(/^\|/, '').replace(/\|$/, '');
+  return withoutOuterPipes.split('|').map((cell) => cell.trim());
 }
 
 function inlineMarkdown(value: string): string {

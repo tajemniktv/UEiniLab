@@ -36,6 +36,10 @@ export const WORKBENCH_RUN_COMMANDS: ReadonlySet<string> = new Set([
   'iniTweakLab.commentOutSelectedTweaks'
 ] as const);
 
+const MAX_WORKBENCH_QUERY_LENGTH = 1000;
+const MAX_WORKBENCH_CVAR_NAME_LENGTH = 500;
+const CVAR_NAME_PATTERN = /^[A-Za-z_][\w.:-]*$/;
+
 export function isWorkbenchView(value: unknown): value is WorkbenchView {
   return typeof value === 'string' && WORKBENCH_VIEWS.includes(value as WorkbenchView);
 }
@@ -57,9 +61,17 @@ export function isSupportedWorkbenchMessage(message: unknown): message is Workbe
     case 'selectEngineVersion':
       return candidate.engineVersion === undefined || typeof candidate.engineVersion === 'string';
     case 'searchCvars':
-      return candidate.query === undefined || typeof candidate.query === 'string';
+      return (
+        candidate.query === undefined ||
+        (typeof candidate.query === 'string' && candidate.query.length <= MAX_WORKBENCH_QUERY_LENGTH)
+      );
     case 'insertCvar':
-      return typeof candidate.name === 'string' && candidate.name.length > 0;
+      return (
+        typeof candidate.name === 'string' &&
+        candidate.name.length > 0 &&
+        candidate.name.length <= MAX_WORKBENCH_CVAR_NAME_LENGTH &&
+        CVAR_NAME_PATTERN.test(candidate.name)
+      );
     case 'generateReport':
     case 'showDiff':
     case 'explainSelection':

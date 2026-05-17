@@ -17,7 +17,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const runtimeSummary = describeRuntimeContribution(context);
   storage.outputChannel().appendLine(runtimeSummary);
   console.info(runtimeSummary);
-  void promptForReloadAfterVersionChange(context, storage.outputChannel());
+  void promptForReloadAfterVersionChange(context, storage.outputChannel()).catch((error: unknown) => {
+    const message = error instanceof Error ? error.message : String(error);
+    storage.outputChannel().appendLine(`Version-change reload prompt failed: ${message}`);
+  });
   context.subscriptions.push(storage);
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider(IniTweakLabViewProvider.viewType, workbench, {
@@ -58,6 +61,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   await storage.reload().catch((error) => {
     const message = error instanceof Error ? error.message : String(error);
     storage.outputChannel().appendLine(`Initial schema reload failed: ${message}`);
+    void vscode.window.showErrorMessage(`INI Tweak Lab failed to load schemas: ${message}`);
     workbench.setWorkbenchResult({
       kind: 'error',
       title: 'Schema reload failed',

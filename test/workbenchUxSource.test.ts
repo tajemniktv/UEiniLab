@@ -11,6 +11,7 @@ describe('Workbench UX source contracts', () => {
 
     expect(source).toMatch(/case 'searchCvars':[\s\S]*this\.postCvarResults\(\);[\s\S]*return;/);
     expect(source).toContain("command: 'replaceCvarResults'");
+    expect(source).toContain('results: cvarResults.map(toWorkbenchCvarResult)');
     expect(source).toContain("[data-cvar-results]");
   });
 
@@ -26,5 +27,13 @@ describe('Workbench UX source contracts', () => {
 
     expect(source).toContain('iniTweakLab.lastActivatedVersion');
     expect(source).toContain('workbench.action.reloadWindow');
+  });
+
+  it('supports expected markdown structures in Workbench results', async () => {
+    const source = await readFile(resolve(process.cwd(), 'src/webview/uiViewProvider.ts'), 'utf8');
+
+    expect(source).toContain("line.startsWith('### ')");
+    expect(source).toContain('const listItem = line.match');
+    expect(source).toContain('parseTableCells');
   });
 });

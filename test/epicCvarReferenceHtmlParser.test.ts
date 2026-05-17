@@ -26,7 +26,8 @@ describe('parseEpicCvarReferenceHtml', () => {
       { engineVersion: '5.7', id: 'ue5.7-base', displayName: 'UE 5.7 Base' }
     );
 
-    expect(pack.target?.engineVersion).toBe('5.7');
+    if (!pack.target) throw new Error('Expected parsed pack target metadata.');
+    expect(pack.target.engineVersion).toBe('5.7');
     expect(pack.cvars['a.AnimNode.AimOffsetLookAt.Enable']).toMatchObject({
       name: 'a.AnimNode.AimOffsetLookAt.Enable',
       kind: 'variable',

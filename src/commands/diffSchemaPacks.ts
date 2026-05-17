@@ -13,7 +13,12 @@ export async function diffSchemaPacks(storage: SchemaStorage, workbench: Workben
       .getPacks()
       .sort((a, b) => b.priority - a.priority);
     if (packs.length < 2) {
-      void vscode.window.showInformationMessage('Load at least two schema packs before running a schema diff.');
+      workbench.setWorkbenchResult({
+        kind: 'error',
+        title: 'Schema diff unavailable',
+        markdown: 'Load at least two schema packs before running a schema diff.'
+      });
+      await workbench.focusWorkbench('schemaStack');
       return;
     }
 

@@ -24,6 +24,16 @@ describe('activity bar webview security', () => {
     expect(source).toContain('isSupportedWorkbenchMessage');
     expect(source).toContain('safeSerializeMessage');
     expect(source).toContain('if (!isSupportedWorkbenchMessage(message))');
+    expect(source).toContain('Error handling Workbench message');
     expect(source).not.toContain('executeCommand(message.command)');
+  });
+
+  it('updates dynamic CVar search results without assigning raw HTML', async () => {
+    const source = await readFile(resolve(process.cwd(), 'src/webview/uiViewProvider.ts'), 'utf8');
+
+    expect(source).toContain('document.createElement');
+    expect(source).toContain('textContent');
+    expect(source).toContain('replaceChildren');
+    expect(source).not.toContain('innerHTML');
   });
 });
