@@ -42,7 +42,11 @@ export function registerCommands(context: vscode.ExtensionContext, storage: Sche
 
 async function requireWorkspaceTrust(action: string, callback: () => Promise<void>): Promise<void> {
   if (!vscode.workspace.isTrusted) {
-    void vscode.window.showWarningMessage(`Trust this workspace to ${action}.`);
+    const manageTrust = 'Manage Trust';
+    const result = await vscode.window.showWarningMessage(`Trust this workspace to ${action}.`, manageTrust);
+    if (result === manageTrust) {
+      await vscode.commands.executeCommand('workbench.trust.manage');
+    }
     return;
   }
   await callback();

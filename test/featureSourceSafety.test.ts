@@ -42,11 +42,22 @@ describe('VS Code feature adapters performance safety', () => {
     expect(source).not.toContain('this.disposables.push(watcher)');
   });
 
+  it('debounces schema watcher reloads instead of reloading directly from each event', async () => {
+    const source = await readFile(resolve(here, '../src/storage/schemaStorage.ts'), 'utf8');
+
+    expect(source).toContain('scheduleReload');
+    expect(source).toContain('setTimeout');
+    expect(source).not.toContain('watcher.onDidChange(() => void this.reload())');
+    expect(source).not.toContain('watcher.onDidCreate(() => void this.reload())');
+    expect(source).not.toContain('watcher.onDidDelete(() => void this.reload())');
+  });
+
   it('gates workspace-writing commands behind Workspace Trust', async () => {
     const source = await readFile(resolve(here, '../src/commands/index.ts'), 'utf8');
 
     expect(source).toContain('requireWorkspaceTrust');
     expect(source).toContain('vscode.workspace.isTrusted');
+    expect(source).toContain('workbench.trust.manage');
     expect(source).toContain("'iniTweakLab.importCvarDump'");
     expect(source).toContain("'iniTweakLab.importSchemaFile'");
     expect(source).toContain("'iniTweakLab.createWorkspaceSchema'");

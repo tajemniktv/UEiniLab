@@ -82,6 +82,7 @@ export function getKeyCompletions(
 }
 
 function entriesForStrictPrefix(registry: SchemaRegistry, normalizedPrefix: string) {
+  if (!/[._\-\s]/.test(normalizedPrefix)) return registry.all();
   const namespace = normalizedPrefix.split(/[._\-\s]+/, 1)[0];
   return namespace ? registry.entriesForNamespace(namespace) : registry.all();
 }

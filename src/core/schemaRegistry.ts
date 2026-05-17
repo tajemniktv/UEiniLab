@@ -27,23 +27,23 @@ export class SchemaRegistry {
   }
 
   all(): ResolvedCvarEntry[] {
-    return this.sortedEntries;
+    return [...this.sortedEntries];
   }
 
   names(): string[] {
-    return this.sortedNames;
+    return [...this.sortedNames];
   }
 
   lowerNames(): string[] {
-    return this.lowercaseNames;
+    return [...this.lowercaseNames];
   }
 
   entriesForNamespace(namespace: string): ResolvedCvarEntry[] {
-    return this.namespaceBuckets.get(namespace.toLowerCase()) ?? [];
+    return [...(this.namespaceBuckets.get(namespace.toLowerCase()) ?? [])];
   }
 
   entriesForToken(token: string): ResolvedCvarEntry[] {
-    return this.tokenIndex.get(token.toLowerCase()) ?? [];
+    return [...(this.tokenIndex.get(token.toLowerCase()) ?? [])];
   }
 
   fuzzy(name: string, limit = 5): ResolvedCvarEntry[] {
@@ -114,7 +114,8 @@ export class SchemaRegistry {
         bucket.push(entry);
         this.namespaceBuckets.set(namespace, bucket);
       }
-      for (const token of entry.name.toLowerCase().split(/[._\-\s]+/).filter(Boolean)) {
+      const tokens = new Set(entry.name.toLowerCase().split(/[._\-\s]+/).filter(Boolean));
+      for (const token of tokens) {
         const matches = this.tokenIndex.get(token) ?? [];
         matches.push(entry);
         this.tokenIndex.set(token, matches);

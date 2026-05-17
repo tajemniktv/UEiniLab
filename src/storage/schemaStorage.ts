@@ -18,6 +18,8 @@ export class SchemaStorage implements vscode.Disposable {
   private readonly onDidChangeEmitter = new vscode.EventEmitter<void>();
   readonly onDidChange = this.onDidChangeEmitter.event;
   private schemaWatchDisposables: vscode.Disposable[] = [];
+  private reloadTimer: ReturnType<typeof globalThis.setTimeout> | undefined;
+  private reloadQueue: Promise<void> = Promise.resolve();
   private readonly output: vscode.OutputChannel;
 
   constructor(private readonly context: vscode.ExtensionContext) {
@@ -26,6 +28,12 @@ export class SchemaStorage implements vscode.Disposable {
   }
 
   async reload(): Promise<void> {
+    const reload = this.reloadQueue.then(() => this.doReload());
+    this.reloadQueue = reload.catch(() => undefined);
+    await reload;
+  }
+
+  private async doReload(): Promise<void> {
     this.disposeSchemaWatchers();
 
     const scope = activeConfigurationScope();
@@ -85,6 +93,7 @@ export class SchemaStorage implements vscode.Disposable {
   }
 
   dispose(): void {
+    if (this.reloadTimer) globalThis.clearTimeout(this.reloadTimer);
     this.disposeSchemaWatchers();
     for (const disposable of this.disposables) disposable.dispose();
     this.onDidChangeEmitter.dispose();
@@ -94,10 +103,18 @@ export class SchemaStorage implements vscode.Disposable {
     const watcher = vscode.workspace.createFileSystemWatcher(new vscode.RelativePattern(path.dirname(schemaPath), path.basename(schemaPath)));
     this.schemaWatchDisposables.push(
       watcher,
-      watcher.onDidChange(() => void this.reload()),
-      watcher.onDidCreate(() => void this.reload()),
-      watcher.onDidDelete(() => void this.reload())
+      watcher.onDidChange(() => this.scheduleReload()),
+      watcher.onDidCreate(() => this.scheduleReload()),
+      watcher.onDidDelete(() => this.scheduleReload())
     );
+  }
+
+  private scheduleReload(): void {
+    if (this.reloadTimer) globalThis.clearTimeout(this.reloadTimer);
+    this.reloadTimer = globalThis.setTimeout(() => {
+      this.reloadTimer = undefined;
+      void this.reload();
+    }, 100);
   }
 
   private disposeSchemaWatchers(): void {
