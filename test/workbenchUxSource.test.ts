@@ -35,5 +35,16 @@ describe('Workbench UX source contracts', () => {
     expect(source).toContain("line.startsWith('### ')");
     expect(source).toContain('const listItem = line.match');
     expect(source).toContain('parseTableCells');
+    expect(source).toContain("line.startsWith('```')");
+    expect(source).toContain('renderMarkdownLink');
+    expect(source).toContain('toSafeMarkdownHref');
+  });
+
+  it('keeps schema-diff precondition errors visible in the Workbench', async () => {
+    const source = await readFile(resolve(process.cwd(), 'src/commands/diffSchemaPacks.ts'), 'utf8');
+
+    expect(source).toContain("title: 'Schema diff unavailable'");
+    expect(source).toContain("await workbench.focusWorkbench('actions')");
+    expect(source).not.toContain("await workbench.focusWorkbench('schemaStack')");
   });
 });

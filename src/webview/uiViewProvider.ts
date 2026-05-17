@@ -437,6 +437,7 @@ function markdownToHtml(markdown: string): string {
   const html: string[] = [];
   let inList = false;
   let inTable = false;
+  let inCodeBlock = false;
   const closeList = (): void => {
     if (inList) {
       html.push('</ul>');
@@ -450,6 +451,22 @@ function markdownToHtml(markdown: string): string {
     }
   };
   for (const line of lines) {
+    if (line.startsWith('```')) {
+      closeList();
+      closeTable();
+      if (inCodeBlock) {
+        html.push('</code></pre>');
+        inCodeBlock = false;
+      } else {
+        html.push('<pre><code>');
+        inCodeBlock = true;
+      }
+      continue;
+    }
+    if (inCodeBlock) {
+      html.push(`${escapeHtml(line)}\n`);
+      continue;
+    }
     if (line.startsWith('# ')) {
       closeList();
       closeTable();
@@ -500,6 +517,7 @@ function markdownToHtml(markdown: string): string {
   }
   closeList();
   closeTable();
+  if (inCodeBlock) html.push('</code></pre>');
   return html.join('');
 }
 
@@ -512,7 +530,24 @@ function parseTableCells(line: string): string[] {
 function inlineMarkdown(value: string): string {
   return escapeHtml(value)
     .replace(/`([^`]+)`/g, '<code>$1</code>')
-    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_match, label: string, href: string) => renderMarkdownLink(label, href));
+}
+
+function renderMarkdownLink(label: string, href: string): string {
+  const safeHref = toSafeMarkdownHref(href);
+  if (!safeHref) return label;
+  return `<a href="${safeHref}">${label}</a>`;
+}
+
+function toSafeMarkdownHref(href: string): string | undefined {
+  const decoded = decodeHtmlEntities(href.trim());
+  if (!/^https?:\/\//i.test(decoded)) return undefined;
+  return escapeHtml(decoded);
+}
+
+function decodeHtmlEntities(value: string): string {
+  return value.replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>');
 }
 
 function escapeHtml(value: string): string {

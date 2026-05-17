@@ -18,7 +18,7 @@ export async function diffSchemaPacks(storage: SchemaStorage, workbench: Workben
         title: 'Schema diff unavailable',
         markdown: 'Load at least two schema packs before running a schema diff.'
       });
-      await workbench.focusWorkbench('schemaStack');
+      await workbench.focusWorkbench('actions');
       return;
     }
 
