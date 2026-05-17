@@ -29,7 +29,7 @@ jobs:
         run: npm test -- --run
 
       - name: Integration tests
-        run: npm run test:integration
+        run: xvfb-run -a npm run test:integration
 
       - name: Lint
         run: npm run lint

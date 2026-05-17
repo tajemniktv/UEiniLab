@@ -54,15 +54,6 @@ export function registerCompletionProvider(context: vscode.ExtensionContext, reg
             );
           }
 
-          if (line.includes('=')) {
-            const key = findKeyFromCurrentLine(line);
-            if (!key) return [];
-            return new vscode.CompletionList(
-              getValueCompletions(key, registry).map((candidate) => toCompletionItem(candidate)),
-              false
-            );
-          }
-
           const cvarCandidates = getKeyCompletions(registry, currentContext.prefix, config.maxCompletionItems, {
             matchMode: config.completionMatchMode,
             fuzzyFallback:
@@ -138,11 +129,6 @@ function toVsCodeInsertReplaceRange(
     inserting: toVsCodeRange(line, insertRange),
     replacing: toVsCodeRange(line, replaceRange)
   };
-}
-
-function findKeyFromCurrentLine(line: string): string | null {
-  const keyMatch = line.match(/^\s*[+\-!]?\s*([^=;#\s][^=;#]*)=/);
-  return keyMatch?.[1]?.trim() || null;
 }
 
 function logCompletionDebug(

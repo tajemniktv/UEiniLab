@@ -28,8 +28,9 @@ describe('VS Code feature adapters performance safety', () => {
 
     expect(source).toContain('token.isCancellationRequested');
     expect(source).toContain('getLineCompletionContext(fullLine, position.character)');
-    expect(source).toContain('findKeyFromCurrentLine');
     expect(source).toContain('getConfig(document.uri)');
-    expect(source.indexOf("currentContext.kind === 'value'")).toBeLessThan(source.indexOf("line.includes('=')"));
+    expect(source).toContain("currentContext.kind === 'value'");
+    expect(source).not.toContain("line.includes('=')");
+    expect(source).not.toContain('findKeyFromCurrentLine');
   });
 });
