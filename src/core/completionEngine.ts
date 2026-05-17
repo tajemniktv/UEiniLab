@@ -26,8 +26,8 @@ export function getKeyCompletions(
   options: KeyCompletionOptions = {}
 ): CompletionCandidate[] {
   const normalizedPrefix = prefix.trim().toLowerCase();
-  const all = registry.all();
   const matchMode = options.matchMode ?? 'smart';
+  const all = matchMode === 'strictPrefix' ? entriesForStrictPrefix(registry, normalizedPrefix) : registry.all();
   const ranked = normalizedPrefix
     ? all
         .map((resolved) => {
@@ -79,6 +79,11 @@ export function getKeyCompletions(
       documentation: resolved.entry.help,
       kind: 'key' as const
     }));
+}
+
+function entriesForStrictPrefix(registry: SchemaRegistry, normalizedPrefix: string) {
+  const namespace = normalizedPrefix.split(/[._\-\s]+/, 1)[0];
+  return namespace ? registry.entriesForNamespace(namespace) : registry.all();
 }
 
 interface CvarCompletionMatch {

@@ -17,7 +17,7 @@ export class SchemaStorage implements vscode.Disposable {
   private readonly disposables: vscode.Disposable[] = [];
   private readonly onDidChangeEmitter = new vscode.EventEmitter<void>();
   readonly onDidChange = this.onDidChangeEmitter.event;
-  private watchers: vscode.FileSystemWatcher[] = [];
+  private schemaWatchDisposables: vscode.Disposable[] = [];
   private readonly output: vscode.OutputChannel;
 
   constructor(private readonly context: vscode.ExtensionContext) {
@@ -26,8 +26,7 @@ export class SchemaStorage implements vscode.Disposable {
   }
 
   async reload(): Promise<void> {
-    for (const watcher of this.watchers) watcher.dispose();
-    this.watchers = [];
+    this.disposeSchemaWatchers();
 
     const scope = activeConfigurationScope();
     const config = getConfig(scope);
@@ -54,7 +53,7 @@ export class SchemaStorage implements vscode.Disposable {
         role: inferRole(result.pack.id, result.pack.target?.game),
         priority: schemaStack.length - index
       });
-      this.watchers.push(this.watchSchema(schemaPath));
+      this.watchSchema(schemaPath);
     }
 
     this.registry.setPacks(loaded);
@@ -86,18 +85,24 @@ export class SchemaStorage implements vscode.Disposable {
   }
 
   dispose(): void {
+    this.disposeSchemaWatchers();
     for (const disposable of this.disposables) disposable.dispose();
-    for (const watcher of this.watchers) watcher.dispose();
     this.onDidChangeEmitter.dispose();
   }
 
-  private watchSchema(schemaPath: string): vscode.FileSystemWatcher {
+  private watchSchema(schemaPath: string): void {
     const watcher = vscode.workspace.createFileSystemWatcher(new vscode.RelativePattern(path.dirname(schemaPath), path.basename(schemaPath)));
-    watcher.onDidChange(() => void this.reload(), undefined, this.disposables);
-    watcher.onDidCreate(() => void this.reload(), undefined, this.disposables);
-    watcher.onDidDelete(() => void this.reload(), undefined, this.disposables);
-    this.disposables.push(watcher);
-    return watcher;
+    this.schemaWatchDisposables.push(
+      watcher,
+      watcher.onDidChange(() => void this.reload()),
+      watcher.onDidCreate(() => void this.reload()),
+      watcher.onDidDelete(() => void this.reload())
+    );
+  }
+
+  private disposeSchemaWatchers(): void {
+    for (const disposable of this.schemaWatchDisposables) disposable.dispose();
+    this.schemaWatchDisposables = [];
   }
 }
 

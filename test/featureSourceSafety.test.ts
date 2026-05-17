@@ -33,4 +33,22 @@ describe('VS Code feature adapters performance safety', () => {
     expect(source).not.toContain("line.includes('=')");
     expect(source).not.toContain('findKeyFromCurrentLine');
   });
+
+  it('keeps schema file watchers out of long-lived extension disposables', async () => {
+    const source = await readFile(resolve(here, '../src/storage/schemaStorage.ts'), 'utf8');
+
+    expect(source).toContain('schemaWatchDisposables');
+    expect(source).toContain('disposeSchemaWatchers');
+    expect(source).not.toContain('this.disposables.push(watcher)');
+  });
+
+  it('gates workspace-writing commands behind Workspace Trust', async () => {
+    const source = await readFile(resolve(here, '../src/commands/index.ts'), 'utf8');
+
+    expect(source).toContain('requireWorkspaceTrust');
+    expect(source).toContain('vscode.workspace.isTrusted');
+    expect(source).toContain("'iniTweakLab.importCvarDump'");
+    expect(source).toContain("'iniTweakLab.importSchemaFile'");
+    expect(source).toContain("'iniTweakLab.createWorkspaceSchema'");
+  });
 });

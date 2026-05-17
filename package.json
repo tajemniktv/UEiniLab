@@ -2,7 +2,7 @@
   "name": "tajs-ue-ini-lab",
   "displayName": "Taj's UE ini Lab",
   "description": "Schema-backed Unreal Engine and game INI editing, validation, documentation, comparison, and CVar research.",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "publisher": "TajemnikTV",
   "repository": {
     "url": "https://github.com/tajemniktv/UEiniLab",
@@ -16,6 +16,16 @@
     "Linters",
     "Other"
   ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": "limited",
+      "description": "INI Tweak Lab can inspect INI files in Restricted Mode, but importing dumps and writing workspace schema settings require a trusted workspace.",
+      "restrictedConfigurations": [
+        "iniTweakLab.schemaStack",
+        "iniTweakLab.schemaSearchPaths"
+      ]
+    }
+  },
   "activationEvents": [
     "onView:iniTweakLab.panel",
     "onLanguage:ini-tweak",
@@ -153,17 +163,19 @@
         },
         {
           "command": "iniTweakLab.selectEngineVersion",
-          "when": "view == iniTweakLab.panel",
+          "when": "view == iniTweakLab.panel && isWorkspaceTrusted",
           "group": "navigation@2"
         }
       ],
       "view/item/context": [],
       "commandPalette": [
         {
-          "command": "iniTweakLab.importCvarDump"
+          "command": "iniTweakLab.importCvarDump",
+          "when": "isWorkspaceTrusted"
         },
         {
-          "command": "iniTweakLab.importSchemaFile"
+          "command": "iniTweakLab.importSchemaFile",
+          "when": "isWorkspaceTrusted"
         },
         {
           "command": "iniTweakLab.validateCurrentFile"
@@ -181,10 +193,12 @@
           "command": "iniTweakLab.openSchemaStack"
         },
         {
-          "command": "iniTweakLab.selectEngineVersion"
+          "command": "iniTweakLab.selectEngineVersion",
+          "when": "isWorkspaceTrusted"
         },
         {
-          "command": "iniTweakLab.createWorkspaceSchema"
+          "command": "iniTweakLab.createWorkspaceSchema",
+          "when": "isWorkspaceTrusted"
         },
         {
           "command": "iniTweakLab.generateUnrealRendererBlock"
@@ -205,6 +219,7 @@
       "properties": {
         "iniTweakLab.profile": {
           "type": "string",
+          "scope": "resource",
           "enum": [
             "generic",
             "unreal-engine",
@@ -216,6 +231,7 @@
         },
         "iniTweakLab.schemaStack": {
           "type": "array",
+          "scope": "resource",
           "items": {
             "type": "string"
           },
@@ -224,41 +240,49 @@
         },
         "iniTweakLab.enableDiagnostics": {
           "type": "boolean",
+          "scope": "resource",
           "default": true,
           "description": "Enable diagnostics for INI tweak files."
         },
         "iniTweakLab.warnUnknownCvars": {
           "type": "boolean",
+          "scope": "resource",
           "default": true,
           "description": "Warn about unknown CVar-looking keys."
         },
         "iniTweakLab.warnDuplicateKeys": {
           "type": "boolean",
+          "scope": "resource",
           "default": true,
           "description": "Warn about duplicate keys in the same section."
         },
         "iniTweakLab.warnTypeMismatches": {
           "type": "boolean",
+          "scope": "resource",
           "default": true,
           "description": "Warn when a value does not match a known CVar type or enum."
         },
         "iniTweakLab.warnKnownInEngineButMissingFromGameDump": {
           "type": "boolean",
+          "scope": "resource",
           "default": true,
           "description": "Warn when a setting exists in a lower-priority engine schema but is missing from the active game dump."
         },
         "iniTweakLab.showHoverSourceProvenance": {
           "type": "boolean",
+          "scope": "resource",
           "default": true,
           "description": "Show schema source provenance in hovers."
         },
         "iniTweakLab.showDumpValuesAsInlayHints": {
           "type": "boolean",
+          "scope": "resource",
           "default": true,
           "description": "Show default/current/type inlay hints beside known CVars."
         },
         "iniTweakLab.maxCompletionItems": {
           "type": "number",
+          "scope": "resource",
           "default": 100,
           "minimum": 10,
           "maximum": 1000,
@@ -266,6 +290,7 @@
         },
         "iniTweakLab.completion.matchMode": {
           "type": "string",
+          "scope": "resource",
           "enum": [
             "strictPrefix",
             "smart",
@@ -276,16 +301,19 @@
         },
         "iniTweakLab.completion.fuzzyFallback": {
           "type": "boolean",
+          "scope": "resource",
           "default": false,
           "description": "Allow fuzzy CVar completion fallback on manual completion invocation when strict prefix matches are empty."
         },
         "iniTweakLab.debug.completions": {
           "type": "boolean",
+          "scope": "window",
           "default": false,
           "description": "Write completion context and candidate diagnostics to the INI Tweak Lab Completions output channel."
         },
         "iniTweakLab.schemaSearchPaths": {
           "type": "array",
+          "scope": "resource",
           "items": {
             "type": "string"
           },
@@ -297,6 +325,7 @@
         },
         "iniTweakLab.defaultIniSections": {
           "type": "array",
+          "scope": "resource",
           "items": {
             "type": "string"
           },
@@ -310,11 +339,13 @@
         },
         "iniTweakLab.assumeUnrealSyntax": {
           "type": "boolean",
+          "scope": "resource",
           "default": true,
           "description": "Enable Unreal-specific syntax such as +Key, -Key, and !Key array mutation lines."
         },
         "iniTweakLab.enableInlineCommentParsing": {
           "type": "boolean",
+          "scope": "resource",
           "default": true,
           "description": "Parse inline comments after values when safe."
         }

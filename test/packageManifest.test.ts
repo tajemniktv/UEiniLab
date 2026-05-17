@@ -80,6 +80,51 @@ describe('extension package manifest', () => {
     expect(packageJson.scripts['test:integration']).toBe('vscode-test --config .vscode-test.mjs');
   });
 
+  it('declares resource scope for settings that can vary by workspace folder or document', async () => {
+    const packageJson = JSON.parse(await readFile(resolve(process.cwd(), 'package.json'), 'utf8')) as {
+      contributes: { configuration: { properties: Record<string, { scope?: string }> } };
+    };
+    const properties = packageJson.contributes.configuration.properties;
+
+    for (const setting of [
+      'iniTweakLab.schemaStack',
+      'iniTweakLab.enableDiagnostics',
+      'iniTweakLab.warnUnknownCvars',
+      'iniTweakLab.warnDuplicateKeys',
+      'iniTweakLab.warnTypeMismatches',
+      'iniTweakLab.warnKnownInEngineButMissingFromGameDump',
+      'iniTweakLab.showHoverSourceProvenance',
+      'iniTweakLab.showDumpValuesAsInlayHints',
+      'iniTweakLab.maxCompletionItems',
+      'iniTweakLab.completion.matchMode',
+      'iniTweakLab.completion.fuzzyFallback',
+      'iniTweakLab.schemaSearchPaths',
+      'iniTweakLab.defaultIniSections',
+      'iniTweakLab.assumeUnrealSyntax',
+      'iniTweakLab.enableInlineCommentParsing'
+    ]) {
+      expect(properties[setting]?.scope, setting).toBe('resource');
+    }
+
+    expect(properties['iniTweakLab.debug.completions']?.scope).toBe('window');
+  });
+
+  it('declares limited Workspace Trust support and restricts workspace-writing settings', async () => {
+    const packageJson = JSON.parse(await readFile(resolve(process.cwd(), 'package.json'), 'utf8')) as {
+      capabilities?: {
+        untrustedWorkspaces?: {
+          supported?: boolean | 'limited';
+          restrictedConfigurations?: string[];
+        };
+      };
+    };
+
+    expect(packageJson.capabilities?.untrustedWorkspaces?.supported).toBe('limited');
+    expect(packageJson.capabilities?.untrustedWorkspaces?.restrictedConfigurations).toEqual(
+      expect.arrayContaining(['iniTweakLab.schemaStack', 'iniTweakLab.schemaSearchPaths'])
+    );
+  });
+
   it('keeps packaging focused on runtime extension assets', async () => {
     const ignore = await readFile(resolve(process.cwd(), '.vscodeignore'), 'utf8');
     const rules = ignore

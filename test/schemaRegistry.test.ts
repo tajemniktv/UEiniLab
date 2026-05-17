@@ -67,4 +67,26 @@ describe('SchemaRegistry', () => {
     expect(registry.search('foo')[0]?.name).toBe('r.Foo');
     expect(registry.search('game help')[0]?.name).toBe('r.Foo');
   });
+
+  it('reuses precomputed sorted entries and names between schema rebuilds', () => {
+    const registry = new SchemaRegistry();
+    registry.setPacks([
+      { pack: enginePack, role: 'engine', priority: 1, path: 'engine.jsonc' },
+      { pack: gamePack, role: 'game', priority: 2, path: 'game.jsonc' }
+    ]);
+
+    const firstAll = registry.all();
+    const secondAll = registry.all();
+    const firstNames = registry.names();
+    const secondNames = registry.names();
+
+    expect(firstAll).toBe(secondAll);
+    expect(firstNames).toBe(secondNames);
+    expect(firstNames).toEqual(['r.EngineOnly', 'r.Foo']);
+
+    registry.setPacks([{ pack: gamePack, role: 'game', priority: 1, path: 'game.jsonc' }]);
+    expect(registry.all()).not.toBe(firstAll);
+    expect(registry.names()).not.toBe(firstNames);
+    expect(registry.names()).toEqual(['r.Foo']);
+  });
 });
