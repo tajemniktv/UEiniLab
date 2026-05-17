@@ -7,6 +7,9 @@ export class SchemaRegistry {
   private packs: LoadedSchemaPack[] = [];
   private resolved = new Map<string, ResolvedCvarEntry>();
   private sourceIndex = new Map<string, LayeredCvarEntry[]>();
+  private sortedEntries: ResolvedCvarEntry[] = [];
+  private sortedNames: string[] = [];
+  private namespaceBuckets = new Map<string, ResolvedCvarEntry[]>();
 
   setPacks(packs: LoadedSchemaPack[]): void {
     this.packs = [...packs].sort((a, b) => a.priority - b.priority);
@@ -22,11 +25,15 @@ export class SchemaRegistry {
   }
 
   all(): ResolvedCvarEntry[] {
-    return [...this.resolved.values()].sort((a, b) => a.name.localeCompare(b.name));
+    return [...this.sortedEntries];
   }
 
   names(): string[] {
-    return this.all().map((entry) => entry.name);
+    return [...this.sortedNames];
+  }
+
+  entriesForNamespace(namespace: string): ResolvedCvarEntry[] {
+    return [...(this.namespaceBuckets.get(namespace.toLowerCase()) ?? [])];
   }
 
   fuzzy(name: string, limit = 5): ResolvedCvarEntry[] {
@@ -38,9 +45,9 @@ export class SchemaRegistry {
   search(query: string, limit = 100): ResolvedCvarEntry[] {
     const normalized = query.trim().toLowerCase();
     if (!normalized) {
-      return this.all().slice(0, limit);
+      return this.sortedEntries.slice(0, limit);
     }
-    return this.all()
+    return this.sortedEntries
       .filter((resolved) => {
         const entry = resolved.entry;
         return (
@@ -60,6 +67,9 @@ export class SchemaRegistry {
   private rebuild(): void {
     this.resolved.clear();
     this.sourceIndex.clear();
+    this.sortedEntries = [];
+    this.sortedNames = [];
+    this.namespaceBuckets.clear();
     for (const loaded of this.packs) {
       for (const [name, entry] of Object.entries(loaded.pack.cvars)) {
         const normalizedName = (entry.name || name).trim();
@@ -79,6 +89,18 @@ export class SchemaRegistry {
 
     for (const [key, layers] of this.sourceIndex) {
       this.resolved.set(key, mergeCvarEntries(layers));
+    }
+
+    this.sortedEntries = [...this.resolved.values()].sort((a, b) => a.name.localeCompare(b.name));
+    this.sortedNames = this.sortedEntries.map((entry) => entry.name);
+
+    for (const entry of this.sortedEntries) {
+      const namespace = entry.name.split(/[._\-\s]+/, 1)[0]?.toLowerCase();
+      if (namespace) {
+        const bucket = this.namespaceBuckets.get(namespace) ?? [];
+        bucket.push(entry);
+        this.namespaceBuckets.set(namespace, bucket);
+      }
     }
   }
 }

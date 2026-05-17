@@ -16,18 +16,38 @@ import { validateCurrentFile } from './validateCurrentFile';
 
 export function registerCommands(context: vscode.ExtensionContext, storage: SchemaStorage, diagnostics: IniDiagnostics): void {
   context.subscriptions.push(
-    vscode.commands.registerCommand('iniTweakLab.importCvarDump', () => importCvarDump(storage)),
-    vscode.commands.registerCommand('iniTweakLab.importSchemaFile', () => importSchemaFile(storage)),
+    vscode.commands.registerCommand('iniTweakLab.importCvarDump', () =>
+      requireWorkspaceTrust('import CVar dumps', () => importCvarDump(storage))
+    ),
+    vscode.commands.registerCommand('iniTweakLab.importSchemaFile', () =>
+      requireWorkspaceTrust('import schema files', () => importSchemaFile(storage))
+    ),
     vscode.commands.registerCommand('iniTweakLab.validateCurrentFile', () => validateCurrentFile(diagnostics)),
     vscode.commands.registerCommand('iniTweakLab.generateTweakReport', () => generateReport(storage)),
     vscode.commands.registerCommand('iniTweakLab.explainSelectedSetting', () => explainSelectedSetting(storage)),
     vscode.commands.registerCommand('iniTweakLab.compareCurrentIniAgainstActiveSchema', () => generateReport(storage)),
     vscode.commands.registerCommand('iniTweakLab.openSchemaStack', () => openSchemaStack(storage)),
-    vscode.commands.registerCommand('iniTweakLab.selectEngineVersion', (engineVersion?: string) => selectEngineVersion(storage, engineVersion)),
-    vscode.commands.registerCommand('iniTweakLab.createWorkspaceSchema', () => createWorkspaceSchema(storage)),
+    vscode.commands.registerCommand('iniTweakLab.selectEngineVersion', (engineVersion?: string) =>
+      requireWorkspaceTrust('update the active schema stack', () => selectEngineVersion(storage, engineVersion))
+    ),
+    vscode.commands.registerCommand('iniTweakLab.createWorkspaceSchema', () =>
+      requireWorkspaceTrust('create workspace schema files', () => createWorkspaceSchema(storage))
+    ),
     vscode.commands.registerCommand('iniTweakLab.generateUnrealRendererBlock', generateUnrealRendererBlock),
     vscode.commands.registerCommand('iniTweakLab.sortCurrentSection', sortCurrentSection),
     vscode.commands.registerCommand('iniTweakLab.commentOutSelectedTweaks', commentOutSelectedTweaks),
     vscode.commands.registerCommand('iniTweakLab.searchActiveCVars', () => searchActiveCvars(storage))
   );
+}
+
+async function requireWorkspaceTrust(action: string, callback: () => Promise<void>): Promise<void> {
+  if (!vscode.workspace.isTrusted) {
+    const manageTrust = 'Manage Trust';
+    const result = await vscode.window.showWarningMessage(`Trust this workspace to ${action}.`, manageTrust);
+    if (result === manageTrust) {
+      await vscode.commands.executeCommand('workbench.trust.manage');
+    }
+    return;
+  }
+  await callback();
 }

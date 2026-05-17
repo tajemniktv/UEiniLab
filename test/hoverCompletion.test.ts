@@ -150,6 +150,13 @@ describe('hover and completion helpers', () => {
     expect(labels.sort()).toEqual(['sg.LumenQuality', 'sg.TextureQuality']);
   });
 
+  it('does not namespace-prefilter partial first-token strict-prefix queries', () => {
+    const registry = registryWithExample();
+    const labels = getKeyCompletions(registry, 's', 10, { matchMode: 'strictPrefix' }).map((item) => item.label);
+
+    expect(labels.sort()).toEqual(['sg.LumenQuality', 'sg.TextureQuality']);
+  });
+
   it('supports smart token discovery without typo-style shader/shadow bleed', () => {
     const registry = registryWithExample();
     const shaderLabels = getKeyCompletions(registry, 'r.Shader', 10, { matchMode: 'smart' }).map((item) => item.label);

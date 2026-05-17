@@ -67,4 +67,21 @@ describe('SchemaRegistry', () => {
     expect(registry.search('foo')[0]?.name).toBe('r.Foo');
     expect(registry.search('game help')[0]?.name).toBe('r.Foo');
   });
+
+  it('returns defensive copies of precomputed sorted entries and names', () => {
+    const registry = new SchemaRegistry();
+    registry.setPacks([
+      { pack: enginePack, role: 'engine', priority: 1, path: 'engine.jsonc' },
+      { pack: gamePack, role: 'game', priority: 2, path: 'game.jsonc' }
+    ]);
+
+    const firstAll = registry.all();
+    const firstNames = registry.names();
+    firstAll.pop();
+    firstNames.push('r.Mutated');
+
+    expect(registry.all().map((entry) => entry.name)).toEqual(['r.EngineOnly', 'r.Foo']);
+    expect(registry.names()).toEqual(['r.EngineOnly', 'r.Foo']);
+  });
+
 });
