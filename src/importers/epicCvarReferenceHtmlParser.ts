@@ -95,18 +95,17 @@ function extractCells(rowHtml: string): string[] {
 }
 
 function stripHtmlTagsFully(value: string): string {
-  let previous = '';
   let current = value;
   let iterations = 0;
   const maxIterations = 1000;
-  do {
-    previous = current;
+
+  while (iterations < maxIterations) {
+    const previous = current;
     current = current.replace(/<[^>]*>/g, '');
     iterations++;
-    if (iterations >= maxIterations) {
-      break;
-    }
-  } while (current !== previous);
+    if (current === previous) break;
+  }
+
   return current;
 }
 
